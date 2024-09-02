@@ -1,5 +1,35 @@
 # Compiler-Construction-Project
 
+## Installation guide
+1. Working directory setup
+Open terminal in IDE and set the 'Project' folder as the current working directory.
+cd Project
+
+2. Install Python 3
+Check whether python has been installed by running the following command
+python3 --version
+
+Steps to install Python 3
+* update the package repository: sudo apt update
+* install python: sudo apt install python3
+* verify installation: python3 --version
+
+3. Create the python virtual environment
+python3 -m venv cos341-venv
+
+4. Activate the virtual environment
+source cos341-venv/bin/activate
+
+5. Install dependencies
+pip install pytest
+python3 -m pip install -r requirements.txt
+
+6. Formatting of python files
+pip install black
+For all files in the environment: black .
+For specific file: black <filename>
+
+## Addition to the project that should be noted
 The bug is that the non-void functions were not given their necessary return statement. (Void-functions obviously do not need any such return statement.)
 
 The bugfix is as follows: Into the project grammar you simply insert this one additional production rule:
