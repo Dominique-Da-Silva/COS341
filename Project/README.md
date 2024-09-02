@@ -1,4 +1,10 @@
 # COMPILER CONSTRUCTION INSTALLATION GUIDE
+
+> [!Important]
+> Clone the repository into WSL. Running the following commands in Windows might lead to problems.
+> 
+> Don't have WSL installed? Check out [How to install WSL](https://learn.microsoft.com/en-us/windows/wsl/install)
+
 ### 1. Working directory setup
 Open a terminal in your IDE and set backend folder as the current working directory (if you have not already done so):
 ```
