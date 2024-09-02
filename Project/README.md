@@ -47,3 +47,11 @@ python main.py
 ```
 deactivate
 ```
+
+### 7. Formatting the file
+```
+sudo pip install black
+```
+```
+black <filename>
+```
