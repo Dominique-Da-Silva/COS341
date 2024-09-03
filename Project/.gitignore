@@ -22,3 +22,6 @@ Thumbs.db
 # Logs and databases
 *.log
 *.sqlite3
+
+# Output directory for XML files (don't think we need to track that)
+outputs/

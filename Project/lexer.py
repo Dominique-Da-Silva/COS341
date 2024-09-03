@@ -21,6 +21,7 @@ class Lexer:
     token_exprs = [
         (r'[ \n\t]+', None),  # Ignore whitespace and newline
         (r'//.*', None),  # Ignore comments
+        # Keywords must be matched before identifiers
         (r'\bmain\b', 'MAIN'),
         (r'\bbegin\b', 'BEGIN'),
         (r'\bend\b', 'END'),
@@ -47,7 +48,7 @@ class Lexer:
         (r'\bvoid\b', 'VOID'),
         (r'V_[a-z]([a-z]|[0-9])*', 'VNAME'),  # Variable names
         (r'F_[a-z]([a-z]|[0-9])*', 'FNAME'),  # Function names
-        (r'"[A-Za-z]{1,8}"', 'CONST_T'),  # Simplified regex for strings (up to 8 characters)
+        (r'"[^"]*"', 'CONST_T'),  # Updated regex for strings
         (r'-?\d+(\.\d+)?', 'CONST_N'),  # Matches both integers and decimals
         (r'=', 'ASSIGN'),
         (r'<', 'INPUT_OP'),
@@ -81,9 +82,16 @@ class Lexer:
                         tokens.append(token)
                     break  # Break after the first match to avoid matching multiple patterns
             if not match:
-                raise SyntaxError(f'Unexpected character: {self.input_text[self.position]}')
+                # Raise an error if an unexpected character is encountered
+                line_num = self.input_text.count('\n', 0, self.position) + 1
+                col_num = self.position - self.input_text.rfind('\n', 0, self.position)
+                raise SyntaxError(f'Unexpected character {self.input_text[self.position]!r} at line {line_num}, column {col_num}')
             else:
                 self.position = match.end(0)  # Move the position to the end of the matched text
+        
+        # Append an end-of-file token to signify the end of input
+        tokens.append(Token('EOF', '$'))
+        
         return tokens  # Return the list of tokens
 
 
