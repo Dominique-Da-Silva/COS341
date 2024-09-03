@@ -96,6 +96,7 @@ class Lexer:
 
 
 # Example usage of the lexer
+'''
 if __name__ == "__main__":
     # Test input program
     input_program = """
@@ -113,3 +114,26 @@ if __name__ == "__main__":
     # Tokenize the input program and print the tokens
     tokens = lexer.tokenize()
     print(tokens)
+'''    
+
+# How the lexer is storing the tokens
+'''
+[Token(MAIN, main), 
+Token(BEGIN, begin), 
+Token(NUM_TYPE, num), 
+Token(VNAME, V_x), 
+Token(COMMA, ,), 
+Token(TEXT_TYPE, text), 
+Token(VNAME, V_y), 
+Token(COMMA, ,), 
+Token(VNAME, V_x), 
+Token(INPUT_OP, <), 
+Token(INPUT, input), 
+Token(PRINT, print), 
+Token(VNAME, V_x), 
+Token(SEMICOLON, ;), 
+Token(RETURN, return), 
+Token(VNAME, V_x), 
+Token(END, end), 
+Token(EOF, $)]
+'''
