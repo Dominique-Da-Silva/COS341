@@ -95,27 +95,6 @@ class Lexer:
         return tokens  # Return the list of tokens
 
 
-# Example usage of the lexer
-'''
-if __name__ == "__main__":
-    # Test input program
-    input_program = """
-    main
-    begin
-        num V_x, text V_y,
-        V_x < input
-        print V_x;
-        return V_x
-    end
-    """
-
-    # Initialize the lexer with the input program
-    lexer = Lexer(input_program)
-    # Tokenize the input program and print the tokens
-    tokens = lexer.tokenize()
-    print(tokens)
-'''    
-
 # How the lexer is storing the tokens
 '''
 [Token(MAIN, main), 

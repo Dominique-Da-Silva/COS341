@@ -1,7 +1,6 @@
-# main.py
-
 import os
 from lexer import Lexer
+from parser import SLRParser  # Import your SLR parser
 
 def main():
     # Specify the input and output directories
@@ -32,8 +31,15 @@ def main():
             generate_xml(tokens, output_path)
             print(f"Processed {input_file} successfully. Output saved to {output_path}.")
 
+            # Parse the XML file with the SLR parser
+            parse_result = parse_xml(output_path)
+            if parse_result:
+                print(f"Parsing successful for {input_file}.")
+
         except SyntaxError as e:
             print(f"Lexical error in {input_file}: {e}")
+        except Exception as e:
+            print(f"Error in {input_file}: {e}")
 
 def generate_xml(tokens, output_path):
     """
@@ -55,6 +61,20 @@ def generate_xml(tokens, output_path):
     # Write XML content to the output file
     with open(output_path, 'w') as xml_file:
         xml_file.write(xml_content)
+
+def parse_xml(xml_path):
+    """
+    Use the SLRParser to parse the XML token stream.
+    """
+    try:
+        parser = SLRParser(xml_path)  # Initialize the parser with the XML file
+        return parser.parse()  # Call the parse method and return the result
+    except SyntaxError as e:
+        print(f"Parsing error: {e}")
+        return False
+    except Exception as e:
+        print(f"An error occurred during parsing: {e}")
+        return False
 
 if __name__ == "__main__":
     main()
