@@ -1,0 +1,14 @@
+main
+begin
+    num V_x, text V_y, num V@result
+    V_x < inpt
+    V_y = "Hello World!
+    print V_y;
+    V_resu1t = add(V_x, 5)
+    if eq(V_x, 10 then
+        print "Equal to ten!";
+    else
+        print "Not equal to ten!"
+    end
+    return V_result
+end
