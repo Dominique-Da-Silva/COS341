@@ -1,11 +1,16 @@
 import os
-from lexer import Lexer
+from lexer import Lexer, LexicalError  # Import LexicalError from lexer
 from parser import SLRParser  # Import your SLR parser
+import xml.etree.ElementTree as ET
 
 def main():
     # Specify the input and output directories
     input_dir = "inputs"
     output_dir = "outputs"
+
+    # Create the output directory if it doesn't exist
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     # List all .txt files in the input directory
     input_files = [f for f in os.listdir(input_dir) if f.endswith('.txt')]
@@ -29,38 +34,65 @@ def main():
 
             # Generate XML output
             generate_xml(tokens, output_path)
-            print(f"Processed {input_file} successfully. Output saved to {output_path}.")
+            print(f"Lexing successful for {input_file}. Output saved to {output_path}.")
 
             # Parse the XML file with the SLR parser
             parse_result = parse_xml(output_path)
             if parse_result:
                 print(f"Parsing successful for {input_file}.")
 
+        except LexicalError as e:
+            print(f"Lexing failed for {input_file}: {e}")
         except SyntaxError as e:
-            print(f"Lexical error in {input_file}: {e}")
+            print(f"Syntax error in {input_file}: {e}")
+
         except Exception as e:
             print(f"Error in {input_file}: {e}")
+
+import xml.etree.ElementTree as ET
+
+def indent_xml(elem, level=0):
+    """
+    Recursively adds indentation to the XML elements for pretty printing.
+    """
+    indent = "  "  # Two spaces for indentation; adjust as needed
+    i = "\n" + level * indent
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + indent
+        for child in elem:
+            indent_xml(child, level + 1)
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
 
 def generate_xml(tokens, output_path):
     """
     Generate an XML file from the list of tokens.
     """
-    # XML header and root element
-    xml_content = "<TOKENSTREAM>\n"
+    root = ET.Element('TOKENSTREAM')
     
     for i, token in enumerate(tokens, start=1):
-        xml_content += f"  <TOK>\n"
-        xml_content += f"    <ID>{i}</ID>\n"
-        xml_content += f"    <CLASS>{token.type}</CLASS>\n"
-        xml_content += f"    <WORD>{token.value}</WORD>\n"
-        xml_content += f"  </TOK>\n"
+        tok_element = ET.SubElement(root, 'TOK')
+        id_element = ET.SubElement(tok_element, 'ID')
+        id_element.text = str(i)
+        class_element = ET.SubElement(tok_element, 'CLASS')
+        class_element.text = token.type
+        word_element = ET.SubElement(tok_element, 'WORD')
+        word_element.text = token.value  # Special characters will be escaped automatically
 
-    # Closing root element
-    xml_content += "</TOKENSTREAM>\n"
+    # Indent the XML for pretty printing
+    indent_xml(root)
 
-    # Write XML content to the output file
-    with open(output_path, 'w') as xml_file:
-        xml_file.write(xml_content)
+    # Create the tree and write to the output file
+    tree = ET.ElementTree(root)
+    tree.write(output_path, encoding='utf-8', xml_declaration=True)
+
+
+
+
 
 def parse_xml(xml_path):
     """
@@ -70,10 +102,10 @@ def parse_xml(xml_path):
         parser = SLRParser(xml_path)  # Initialize the parser with the XML file
         return parser.parse()  # Call the parse method and return the result
     except SyntaxError as e:
-        print(f"Parsing error: {e}")
+        print(f"Parsing failed: {e}")
         return False
     except Exception as e:
-        print(f"An error occurred during parsing: {e}")
+        print(f"An exception was caught during parsing: {e}")
         return False
 
 if __name__ == "__main__":
