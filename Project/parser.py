@@ -1,20 +1,25 @@
-# Parser
-
 import xml.etree.ElementTree as ET
 
+'''
+===========================================================================================
+'''
 class Token:
     """
     Token class to store information about each token.
     """
     def __init__(self, token_id, token_class, token_value):
-        self.token_id = token_id  # Token ID from the XML file
-        self.token_class = token_class  # Class of the token (e.g., 'reserved_keyword', 'N')
-        self.token_value = token_value  # Actual value of the token (e.g., 'else', '56.7')
+        self.token_id = token_id
+        self.token_class = token_class
+        self.token_value = token_value
 
     def __repr__(self):
         return f'Token({self.token_id}, {self.token_class}, {self.token_value})'
 
 
+
+'''
+===========================================================================================
+'''
 class ProductionRule:
     """
     Class to represent a production rule in the grammar.
@@ -27,11 +32,15 @@ class ProductionRule:
         return f"{self.lhs} -> {' '.join(self.rhs)}"
 
 
-class SLRParser:
-    """
-    The SLR parser class that reads tokens from the XML file, parses the input, and constructs a parse tree.
-    """
 
+'''
+===========================================================================================
+The SLR parser class that reads tokens from the XML file, parses the input, and constructs a parse tree.
+'''
+class SLRParser:
+    '''
+    ------------------------------------------------------------------------------------------
+    '''
     def __init__(self, xml_file):
         self.tokens = self.load_tokens_from_xml(xml_file)
         self.current_token_index = 0  # Keep track of which token we're parsing
@@ -49,6 +58,10 @@ class SLRParser:
         self.initialize_parsing_table()
         self.initialize_grammar_rules()
 
+
+    '''
+    ------------------------------------------------------------------------------------------
+    '''
     def initialize_parsing_table(self):
         """
         Initialize the parsing table with the actions and goto entries.
@@ -83,6 +96,10 @@ class SLRParser:
 
         pass  # Remove this pass statement when you add the parsing table entries
 
+
+    '''
+    ------------------------------------------------------------------------------------------
+    '''
     def initialize_grammar_rules(self):
         """
         Initialize the grammar rules used for reductions.
@@ -103,6 +120,10 @@ class SLRParser:
 
         pass  # Remove this pass statement when you add the grammar rules
 
+
+    '''
+    ------------------------------------------------------------------------------------------
+    '''
     def load_tokens_from_xml(self, xml_file):
         """
         Load tokens from an XML file and return a list of Token objects.
@@ -122,6 +143,10 @@ class SLRParser:
 
         return tokens
 
+
+    '''
+    ------------------------------------------------------------------------------------------
+    '''
     def current_token(self):
         """
         Returns the current token to be parsed.
@@ -130,12 +155,20 @@ class SLRParser:
             return self.tokens[self.current_token_index]
         return None  # End of input
 
+
+    '''
+    ------------------------------------------------------------------------------------------
+    '''
     def advance_token(self):
         """
         Advances to the next token.
         """
         self.current_token_index += 1
 
+
+    '''
+    ------------------------------------------------------------------------------------------
+    '''
     def parse(self):
         """
         Main parsing function. Uses the parsing table and grammar rules to construct a parse tree.
@@ -203,7 +236,3 @@ class SLRParser:
             # Uncomment the following lines for debugging purposes
             # print(f"Stack: {self.stack}")
             # print(f"Next token: {token}")
-
-# Example usage:
-# parser = SLRParser('path_to_xml_file.xml')
-# parser.parse()
