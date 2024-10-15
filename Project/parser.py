@@ -287,6 +287,27 @@ class SLRParser:
             (90, 'TEXT_TYPE'): ('shift', 5),
             (91, 'VNAME'): ('shift', 9),
             (92, 'RPAREN'): ('shift', 106),
+            (93, 'COMMA'): ('reduce', 29),
+            (93, 'RPAREN'): ('reduce', 29),
+            (94, 'COMMA'): ('reduce', 30),
+            (94, 'RPAREN'): ('reduce', 30),
+            (95, 'COMMA'): ('shift', 107),
+            (96, 'COMMA'): ('shift', 108),
+            (97, 'BEGIN'): ('shift', 7),
+            (98, 'VNAME'): ('shift', 9),
+            (98, 'CONST_N'): ('shift', 40),
+            (98, 'CONST_T'): ('shift', 41),
+            (99, 'OR'): ('shift', 51),
+            (99, 'AND'): ('shift', 52),
+            (99, 'EQ'): ('shift', 53),
+            (99, 'GRT'): ('shift', 54),
+            (99, 'ADD'): ('shift', 55),
+            (99, 'SUB'): ('shift', 56),
+            (99, 'MUL'): ('shift', 57),
+            (99, 'DIV'): ('shift', 58),
+            (100, 'VNAME'): ('shift', 9),
+            (100, 'CONST_N'): ('shift', 40),
+            (100, 'CONST_T'): ('shift', 41),
         }
 
 
@@ -383,6 +404,15 @@ class SLRParser:
             (88, 'SUBFUNCS'): 102,
             (90, 'VTYP'): 104,
             (91, 'VNAME'): 105,
+            (97, 'ALGO'): 109,
+            (98, 'VNAME'): 38,
+            (98, 'ATOMIC'): 110,
+            (98, 'CONST'): 39,
+            (99, 'SIMPLE'): 111,
+            (99, 'BINOP'): 86,
+            (100, 'VNAME'): 38,
+            (100, 'ATOMIC'): 84,
+            (100, 'CONST'), 39,
         }
 
 
