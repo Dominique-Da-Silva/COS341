@@ -142,6 +142,23 @@ class SLRParser:
             (31, 'EOF'): ('reduce', 49),
             (32, 'NUM_TYPE'): ('shift', 4),
             (32, 'TEXT_TYPE'): ('shift', 5),
+            (33, 'NUM_TYPE'): ('reduce', 54),
+            (33, 'TEXT_TYPE'): ('reduce', 54),
+            (34, 'LPAREN'): ('shift', 64),
+            (35, 'NUM_TYPE'): ('reduce', 6),
+            (35, 'SEMICOLON'): ('reduce', 6),
+            (35, 'ELSE'): ('reduce', 6),
+            (35, 'VOID'): ('reduce', 6),
+            (35, 'RBRACE'): ('reduce', 6),
+            (35, 'EOF'): ('reduce', 6),
+            (36, 'VNAME'): ('shift', 9),
+            (36, 'END'): ('reduce', 7),
+            (36, 'SKIP'): ('shift', 18),
+            (36, 'HALT'): ('shift', 19),
+            (36, 'PRINT'): ('shift', 20),
+            (36, 'RETURN'): ('shift', 24),
+            (36, 'IF'): ('shift', 27),
+            (36, 'FNAME'): ('shift', 28),
         }
 
 
@@ -183,7 +200,13 @@ class SLRParser:
             (29, 'VTYP'): 3,
             (32, 'VTYP'): 63,
             (32, 'LOCVARS'): 62,
-            
+            (36, 'VNAME'): 25,
+            (36, 'INSTRUC'): 65,
+            (36, 'COMMAND'): 17,
+            (36, 'ASSIGN'): 21,
+            (36, 'CALL'): 22,
+            (36, 'BRANCH'): 23,
+            (36, 'FNAME'): 26,
         }
 
 
