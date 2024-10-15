@@ -45,8 +45,8 @@ def main():
             # Generate XML output
             generate_xml(tokens, output_path)
 
-            # Parse the XML file with the SLR parser
-            parse_result = parse_xml(output_path)
+            # Parse the XML file with the SLR parser, passing input_text
+            parse_result = parse_xml(output_path, input_text)
             if parse_result:
                 print(f"{GREEN}Parsing successful for {input_file}.{RESET}")
             else:
@@ -94,18 +94,22 @@ def generate_xml(tokens, output_path):
         class_element.text = token.type
         word_element = ET.SubElement(tok_element, 'WORD')
         word_element.text = token.value
+        line_element = ET.SubElement(tok_element, 'LINE')
+        line_element.text = str(token.line_num)
+        col_element = ET.SubElement(tok_element, 'COL')
+        col_element.text = str(token.col_num)
 
     indent_xml(root)
 
     tree = ET.ElementTree(root)
     tree.write(output_path, encoding='utf-8', xml_declaration=True)
 
-def parse_xml(xml_path):
+def parse_xml(xml_path, input_text):
     """
     Use the SLRParser to parse the XML token stream.
     """
     try:
-        parser = SLRParser(xml_path)
+        parser = SLRParser(xml_path, input_text)
         return parser.parse()
     except SyntaxError as e:
         print(f"{RED}Parsing failed: {e}{RESET}")
@@ -113,6 +117,7 @@ def parse_xml(xml_path):
     except Exception as e:
         print(f"{RED}An exception was caught during parsing: {e}{RESET}")
         return False
+
 
 if __name__ == "__main__":
     main()
