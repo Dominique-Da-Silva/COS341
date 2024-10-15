@@ -254,7 +254,6 @@ class SLRParser:
             (80, 'SUB'): ('shift', 56),
             (80, 'MUL'): ('shift', 57),
             (80, 'DIV'): ('shift', 58),
-
             (81, 'VNAME'): ('shift', 9),
             (81, 'CONST_N'): ('shift', 40),
             (81, 'CONST_T'): ('shift', 41),
@@ -271,6 +270,11 @@ class SLRParser:
             (82, 'VNAME'): ('shift', 9),
             (82, 'CONST_N'): ('shift', 40),
             (82, 'CONST_T'): ('shift', 41),
+            (83, 'ELSE'): ('shift', 97),
+            (84, 'COMMA'): ('shift', 98),
+            (85, 'COMMA'): ('shift', 99),
+            (86, 'LPAREN'): ('shift', 100),
+            (87, 'RPAREN'): ('shift', 101),
         }
 
 
