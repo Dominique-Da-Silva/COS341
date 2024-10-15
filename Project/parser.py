@@ -208,7 +208,15 @@ class SLRParser:
             (60, 'LPAREN'): ('reduce', 47),
             (61, 'BEGIN'): ('reduce', 2),
             (62, 'BEGIN'): ('shift', 7),
-            
+            (63, 'VNAME'): ('shift', 9),
+            (64, 'VNAME'): ('shift', 9),
+            (65, 'END'): ('reduce', 8),
+            (66, 'SEMICOLON'): ('reduce', 20),
+            (67, 'SEMICOLON'): ('reduce', 21),
+            (68, 'SEMICOLON'): ('reduce', 24),
+            (69, 'SEMICOLON'): ('reduce', 25),
+            (70, 'SEMICOLON'): ('reduce', 26),
+            (71, 'LPAREN'): ('shift', 80),
         }
 
 
@@ -270,6 +278,8 @@ class SLRParser:
             (45, 'ATOMIC'): 73,
             (45, 'CONST'): 39,
             (62, 'ALGO'): 77,
+            (63, 'VNAME'): 78,
+            (64, 'VNAME'): 79,
         }
 
 
