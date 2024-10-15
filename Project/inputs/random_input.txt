@@ -1,0 +1,27 @@
+main
+num V_fz,
+begin
+  F_f1("Xscug", V_ki, V_mx) ;
+  print -79.32961440125402 ;
+  V_hq < input ;
+  skip ;
+end
+num F_kl(V_f0, V_pn, V_eg)
+{
+  num V_gy, num V_yw, text V_qx,
+  begin
+    print "Ndmhjs" ;
+    skip ;
+  end
+}
+void F_gf(V_w1, V_wd, V_ll)
+{
+  num V_sc, text V_eh, text V_zb,
+  begin
+    skip ;
+  end
+}
+
+end
+
+end
