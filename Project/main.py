@@ -1,61 +1,71 @@
 import os
-from lexer import Lexer, LexicalError  # Import LexicalError from lexer
-from parser import SLRParser  # Import your SLR parser
+from lexer import Lexer, LexicalError
+from parser import SLRParser
 import xml.etree.ElementTree as ET
 
+# ANSI color codes
+GREEN = '\033[0;32m'
+RED = '\033[0;31m'
+BLUE = "\033[0;34m"
+PURPLE = "\033[0;35m"
+RESET = '\033[0m'
+
 def main():
-    # Specify the input and output directories
     input_dir = "inputs"
     output_dir = "outputs"
 
-    # Create the output directory if it doesn't exist
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # List all .txt files in the input directory
     input_files = [f for f in os.listdir(input_dir) if f.endswith('.txt')]
 
-    # Process each input file
     for input_file in input_files:
         input_path = os.path.join(input_dir, input_file)
         output_file = os.path.splitext(input_file)[0] + ".xml"
         output_path = os.path.join(output_dir, output_file)
 
-        # Read the content of the input file
+        print(f"\n{PURPLE}{'='*40}{RESET}")
+        print(f"{BLUE}Processing file: {input_file}{RESET}")
+        print(f"{PURPLE}{'='*40}{RESET}\n")
+
         with open(input_path, 'r') as file:
             input_text = file.read()
 
-        # Initialize the lexer with the input text
         lexer = Lexer(input_text)
         
         try:
             # Tokenize the input text
             tokens = lexer.tokenize()
 
+            # Divider for lexing success
+            print(f"{PURPLE}{'-'*40}{RESET}")
+            print(f"{GREEN}Lexing successful for {input_file}. Output saved to {output_path}.{RESET}")
+            print(f"{PURPLE}{'-'*40}{RESET}")
+
             # Generate XML output
             generate_xml(tokens, output_path)
-            print(f"Lexing successful for {input_file}. Output saved to {output_path}.")
 
             # Parse the XML file with the SLR parser
             parse_result = parse_xml(output_path)
             if parse_result:
-                print(f"Parsing successful for {input_file}.")
+                print(f"{GREEN}Parsing successful for {input_file}.{RESET}")
+            else:
+                print(f"{RED}Parsing failed for {input_file}.{RESET}")
 
         except LexicalError as e:
-            print(f"Lexing failed for {input_file}: {e}")
+            print(f"{RED}Lexing failed for {input_file}: {e}{RESET}")
         except SyntaxError as e:
-            print(f"Syntax error in {input_file}: {e}")
-
+            print(f"{RED}Syntax error in {input_file}: {e}{RESET}")
         except Exception as e:
-            print(f"Error in {input_file}: {e}")
+            print(f"{RED}Error in {input_file}: {e}{RESET}")
 
-import xml.etree.ElementTree as ET
+
 
 def indent_xml(elem, level=0):
     """
     Recursively adds indentation to the XML elements for pretty printing.
     """
-    indent = "  "  # Two spaces for indentation; adjust as needed
+    indent = "  " 
     i = "\n" + level * indent
     if len(elem):
         if not elem.text or not elem.text.strip():
@@ -67,6 +77,8 @@ def indent_xml(elem, level=0):
     else:
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
+
+
 
 def generate_xml(tokens, output_path):
     """
@@ -81,31 +93,25 @@ def generate_xml(tokens, output_path):
         class_element = ET.SubElement(tok_element, 'CLASS')
         class_element.text = token.type
         word_element = ET.SubElement(tok_element, 'WORD')
-        word_element.text = token.value  # Special characters will be escaped automatically
+        word_element.text = token.value
 
-    # Indent the XML for pretty printing
     indent_xml(root)
 
-    # Create the tree and write to the output file
     tree = ET.ElementTree(root)
     tree.write(output_path, encoding='utf-8', xml_declaration=True)
-
-
-
-
 
 def parse_xml(xml_path):
     """
     Use the SLRParser to parse the XML token stream.
     """
     try:
-        parser = SLRParser(xml_path)  # Initialize the parser with the XML file
-        return parser.parse()  # Call the parse method and return the result
+        parser = SLRParser(xml_path)
+        return parser.parse()
     except SyntaxError as e:
-        print(f"Parsing failed: {e}")
+        print(f"{RED}Parsing failed: {e}{RESET}")
         return False
     except Exception as e:
-        print(f"An exception was caught during parsing: {e}")
+        print(f"{RED}An exception was caught during parsing: {e}{RESET}")
         return False
 
 if __name__ == "__main__":
