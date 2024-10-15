@@ -275,6 +275,18 @@ class SLRParser:
             (85, 'COMMA'): ('shift', 99),
             (86, 'LPAREN'): ('shift', 100),
             (87, 'RPAREN'): ('shift', 101),
+            (88, 'NUM_TYPE'): ('shift', 14),
+            (88, 'END'): ('reduce', 47),
+            (88, 'VOID'): ('shift', 15),
+            (88, 'EOF'): ('reduce', 47),
+            (89, 'NUM_TYPE'): ('reduce', 55),
+            (89, 'END'): ('reduce', 55),
+            (89, 'VOID'): ('reduce', 55),
+            (89, 'EOF'): ('reduce', 55),
+            (90, 'NUM_TYPE'): ('shift', 4),
+            (90, 'TEXT_TYPE'): ('shift', 5),
+            (91, 'VNAME'): ('shift', 9),
+            (92, 'RPAREN'): ('shift', 106),
         }
 
 
@@ -364,6 +376,13 @@ class SLRParser:
             (82, 'VNAME'): 38,
             (82, 'CONST'): 39,
             (82, 'ATOMIC'): 96,
+            (88, 'FUNCTIONS'): 103,
+            (88, 'DECL'): 11,
+            (88, 'HEADER'): 12,
+            (88, 'FTYP'): 13,
+            (88, 'SUBFUNCS'): 102,
+            (90, 'VTYP'): 104,
+            (91, 'VNAME'): 105,
         }
 
 
