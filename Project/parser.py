@@ -194,6 +194,21 @@ class SLRParser:
             (46, 'THEN'): ('shift', 74),
             (47, 'THEN'): ('reduce', 31),
             (48, 'THEN'): ('reduce', 32),
+            (49, 'LPAREN'): ('shift', 75),
+            (50, 'LPAREN'): ('shift', 76),
+            (51, 'LPAREN'): ('reduce', 38),
+            (52, 'LPAREN'): ('reduce', 39),
+            (53, 'LPAREN'): ('reduce', 40),
+            (54, 'LPAREN'): ('reduce', 41),
+            (55, 'LPAREN'): ('reduce', 42),
+            (56, 'LPAREN'): ('reduce', 43),
+            (57, 'LPAREN'): ('reduce', 44),
+            (58, 'LPAREN'): ('reduce', 45),
+            (59, 'LPAREN'): ('reduce', 36),
+            (60, 'LPAREN'): ('reduce', 47),
+            (61, 'BEGIN'): ('reduce', 2),
+            (62, 'BEGIN'): ('shift', 7),
+            
         }
 
 
@@ -254,6 +269,7 @@ class SLRParser:
             (45, 'VNAME'): 38,
             (45, 'ATOMIC'): 73,
             (45, 'CONST'): 39,
+            (62, 'ALGO'): 77,
         }
 
 
