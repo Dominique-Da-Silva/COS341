@@ -68,6 +68,8 @@ The SLR parser class that reads tokens from the XML file, parses the input, and 
 '''
 class SLRParser:
     def __init__(self, xml_file, input_text, input_file):
+        SyntaxTreeNode._id_counter = 0
+
         self.input_file = input_file
         self.tokens = self.load_tokens_from_xml(xml_file)
         self.current_token_index = 0  # Keep track of which token we're parsing
@@ -104,6 +106,7 @@ class SLRParser:
 
         self.action_table = {
             (0, 'MAIN'): ('shift', 1),
+            (0, 'EOF'): ('accept',), #added not according to generated table
             (1, 'NUM_TYPE'): ('shift', 4),
             (1, 'TEXT_TYPE'): ('shift', 5),
             (1, 'BEGIN'): ('reduce',1),
@@ -129,7 +132,8 @@ class SLRParser:
             (9, 'INPUT_OP'): ('reduce', 5),
             (9, 'ASSIGN'): ('reduce', 5),
             (9, 'RPAREN'): ('reduce', 5),
-            (10, 'EOF'): ('accept',),
+            #(10, 'EOF'): ('accept',),
+            (10, 'EOF'): ('reduce', 0),  # Reduce using Production 0: PROG -> MAIN GLOBVARS ALGO FUNCTIONS
             (11, 'NUM_TYPE'): ('shift', 14),
             (11, 'END'): ('reduce', 47),
             (11, 'VOID'): ('shift', 15),
@@ -171,7 +175,8 @@ class SLRParser:
             (29, 'BEGIN'): ('reduce', 1),
             (30, 'END'): ('reduce', 48),
             # (30, 'EOF'): ('reduce', 48),
-            (30, 'EOF'): ('accept',),
+            # (30, 'EOF'): ('accept',),
+            (30, 'EOF'): ('reduce', 0),  # Reduce using Production 0: PROG -> MAIN GLOBVARS ALGO FUNCTIONS
             (31, 'NUM_TYPE'): ('reduce', 49),
             (31, 'END'): ('reduce', 49),
             (31, 'VOID'): ('reduce', 49),
@@ -402,14 +407,18 @@ class SLRParser:
 
 
         self.goto_table = {
+            (0 , 'PROG'): 1, #added not according to generated table
             (1, 'GLOBVARS'): 2,
             (1, 'VTYP'): 3,
+            (1, 'PROG'): 0, #added not according to generated table
+            (2, 'PROG'): 0, #added not according to generated table
             (2, 'ALGO'): 6,
             (3, 'VNAME'): 8,
             (6, 'FUNCTIONS'):10,
             (6, 'DECL'): 11,
             (6, 'HEADER'): 12,
             (6, 'FTYP'): 13,
+            (6, 'PROG'): 0, #added not according to generated table
             (7, 'VNAME'): 25,
             (7, 'INSTRUC'): 16,
             (7, 'COMMAND'): 17,
@@ -789,8 +798,14 @@ class SLRParser:
                 raise SyntaxError(error_message)
 
             if action[0] == 'accept':
-                # The root node is the last node on the node stack
-                self.syntax_tree_root = self.node_stack.pop()
+                if self.syntax_tree_root is None:
+                    if len(self.node_stack) == 1:
+                        self.syntax_tree_root = self.node_stack.pop()
+                    else:
+                        raise Exception("Parser error: syntax_tree_root is None and node stack has unexpected size.")
+                
+                # Parsing completed successfully.
+                print("Parsing completed successfully.")
 
                 # Generate the syntax tree XML
                 import os
@@ -801,8 +816,8 @@ class SLRParser:
                 output_file_path = os.path.join(output_folder, output_filename)
                 self.generate_syntax_tree_xml(output_file_path)
 
-                print("Parsing completed successfully.")
                 return True
+
 
             # Print the current state, token, and action on the same line
             print(f"State: {state}, Current token: {token}, Action: {action}")
@@ -849,28 +864,54 @@ class SLRParser:
                 for child in children_nodes:
                     child.parent = inner_node.unid
 
-                # If the production is for PROG, set it as the root
-                if production.lhs == 'PROG':
-                    self.syntax_tree_root = inner_node
-
                 # Push the inner node onto the node stack
                 self.node_stack.append(inner_node)
 
-                # Push the LHS non-terminal
+                # **Do not set the parent of inner_node here**
+
+                # If the production is for PROG, set it as the root and accept
+                if production.lhs == 'PROG':
+                    self.syntax_tree_root = inner_node
+                    print("Syntax tree root set to PROG node with UNID:", self.syntax_tree_root.unid)
+                    print("Parsing completed successfully.")
+
+                    # Generate the syntax tree XML
+                    import os
+                    input_filename = os.path.basename(self.input_file)
+                    output_filename = os.path.splitext(input_filename)[0] + '_syntaxtree.xml'
+                    output_folder = 'outputs'
+                    os.makedirs(output_folder, exist_ok=True)
+                    output_file_path = os.path.join(output_folder, output_filename)
+                    self.generate_syntax_tree_xml(output_file_path)
+                    return True
+
                 self.stack.append(production.lhs)
 
                 # Get the next state from the goto table
+                current_state = self.stack[-2]  # The state before the LHS symbol
                 goto_state = self.goto_table.get((current_state, production.lhs))
                 if goto_state is None:
-                    # Goto error
-                    raise SyntaxError(f"Goto error for state {current_state} and non-terminal {production.lhs}")
+                    # If we just reduced to PROG and are in State 0, accept the input
+                    if production.lhs == 'PROG' and current_state == 0:
+                        # Accept the input
+                        self.syntax_tree_root = inner_node
+                        print("Syntax tree root set to PROG node with UNID:", self.syntax_tree_root.unid)
+                        print("Parsing completed successfully.")
+                        # Generate the syntax tree XML
+                        import os
+                        input_filename = os.path.basename(self.input_file)
+                        output_filename = os.path.splitext(input_filename)[0] + '_syntaxtree.xml'
+                        output_folder = 'outputs'
+                        os.makedirs(output_folder, exist_ok=True)
+                        output_file_path = os.path.join(output_folder, output_filename)
+                        self.generate_syntax_tree_xml(output_file_path)
+                        return True
+                    else:
+                        # Goto error
+                        raise SyntaxError(f"Goto error for state {current_state} and non-terminal {production.lhs}")
+                else:
+                    self.stack.append(goto_state)
 
-                self.stack.append(goto_state)
-
-
-            else:
-                # Invalid action
-                raise SyntaxError(f"Invalid action {action} for state {state} and token {token.type}")
 
 
     def get_line_text(self, line_num):

@@ -1,8 +1,6 @@
 main
 
 begin
-  V_ia < input ;
-  F_x2("Oa", "Lhtql", "Rmz") ;
-  print V_kz ;
+  halt ;
 
 end
