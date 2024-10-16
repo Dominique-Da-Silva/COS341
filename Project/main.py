@@ -21,7 +21,7 @@ def main():
 
     for input_file in input_files:
         input_path = os.path.join(input_dir, input_file)
-        output_file = os.path.splitext(input_file)[0] + ".xml"
+        output_file = os.path.splitext(input_file)[0] + "_lexer_output.xml"
         output_path = os.path.join(output_dir, output_file)
 
         print(f"\n{PURPLE}{'='*40}{RESET}")
@@ -45,8 +45,8 @@ def main():
             # Generate XML output
             generate_xml(tokens, output_path)
 
-            # Parse the XML file with the SLR parser, passing input_text
-            parse_result = parse_xml(output_path, input_text)
+            # Parse the XML file with the SLR parser, passing input_text and input_path
+            parse_result = parse_xml(output_path, input_path, input_text)
             if parse_result:
                 print(f"{GREEN}Parsing successful for {input_file}.{RESET}")
             else:
@@ -104,19 +104,21 @@ def generate_xml(tokens, output_path):
     tree = ET.ElementTree(root)
     tree.write(output_path, encoding='utf-8', xml_declaration=True)
 
-def parse_xml(xml_path, input_text):
+def parse_xml(xml_file, input_file, input_text):
     """
     Use the SLRParser to parse the XML token stream.
     """
     try:
-        parser = SLRParser(xml_path, input_text)
-        return parser.parse()
+        parser = SLRParser(xml_file, input_text, input_file)
+        parser.parse()
+        return True
     except SyntaxError as e:
         print(f"{RED}Parsing failed: {e}{RESET}")
         return False
     except Exception as e:
         print(f"{RED}An exception was caught during parsing: {e}{RESET}")
         return False
+
 
 
 if __name__ == "__main__":

@@ -32,6 +32,34 @@ class ProductionRule:
     def __repr__(self):
         return f"{self.lhs} -> {' '.join(self.rhs)}"
 
+class SyntaxTreeNode:
+    """
+    Base class for nodes in the syntax tree.
+    """
+    _id_counter = 0  # Class variable to assign unique IDs
+
+    def __init__(self):
+        self.unid = SyntaxTreeNode._id_counter
+        SyntaxTreeNode._id_counter += 1
+
+class RootNode(SyntaxTreeNode):
+    def __init__(self, symbol):
+        super().__init__()
+        self.symb = symbol
+        self.children = []
+
+class InnerNode(SyntaxTreeNode):
+    def __init__(self, parent_unid, symbol):
+        super().__init__()
+        self.parent = parent_unid
+        self.symb = symbol
+        self.children = []
+
+class LeafNode(SyntaxTreeNode):
+    def __init__(self, parent_unid, token):
+        super().__init__()
+        self.parent = parent_unid
+        self.terminal = token  # Store the Token object
 
 
 '''
@@ -39,7 +67,8 @@ class ProductionRule:
 The SLR parser class that reads tokens from the XML file, parses the input, and constructs a parse tree.
 '''
 class SLRParser:
-    def __init__(self, xml_file, input_text):
+    def __init__(self, xml_file, input_text, input_file):
+        self.input_file = input_file
         self.tokens = self.load_tokens_from_xml(xml_file)
         self.current_token_index = 0  # Keep track of which token we're parsing
         self.input_text = input_text  # Store the original input text
@@ -56,6 +85,12 @@ class SLRParser:
         # Initialize parsing table and grammar rules
         self.initialize_parsing_table()
         self.initialize_grammar_rules()
+        
+        # Initialize the syntax tree
+        self.syntax_tree_root = None
+        self.inner_nodes = []
+        self.leaf_nodes = []
+
 
 
     '''
@@ -726,6 +761,7 @@ class SLRParser:
         """
         # Initialize stack with state 0
         self.stack = [0]
+        self.node_stack = []
 
         while True:
             state = self.stack[-1]  # Current state is on top of the stack
@@ -752,11 +788,21 @@ class SLRParser:
                 )
                 raise SyntaxError(error_message)
 
-            # Handle the 'accept' action
             if action[0] == 'accept':
-                # Accept action
+                # The root node is the last node on the node stack
+                self.syntax_tree_root = self.node_stack.pop()
+
+                # Generate the syntax tree XML
+                import os
+                input_filename = os.path.basename(self.input_file)
+                output_filename = os.path.splitext(input_filename)[0] + '_syntaxtree.xml'
+                output_folder = 'outputs'
+                os.makedirs(output_folder, exist_ok=True)
+                output_file_path = os.path.join(output_folder, output_filename)
+                self.generate_syntax_tree_xml(output_file_path)
+
                 print("Parsing completed successfully.")
-                return True  # Terminate parsing successfully
+                return True
 
             # Print the current state, token, and action on the same line
             print(f"State: {state}, Current token: {token}, Action: {action}")
@@ -767,6 +813,12 @@ class SLRParser:
                 self.stack.append(token.type)  # Push the token type (terminal symbol)
                 self.stack.append(next_state)  # Push the next state
                 self.advance_token()           # Move to the next token
+                # Create a leaf node for the shifted token
+                # Create a leaf node for the shifted token
+                leaf_node = LeafNode(None, token)  # Parent will be set during reduction
+                self.leaf_nodes.append(leaf_node)
+                # Push the leaf node onto the node stack
+                self.node_stack.append(leaf_node)
 
             elif action[0] == 'reduce':
                 # Reduce action
@@ -777,6 +829,29 @@ class SLRParser:
                 pop_length = 2 * len(production.rhs)
                 for _ in range(pop_length):
                     self.stack.pop()
+                    
+                # Collect the child nodes for this production
+                rhs_length = len(production.rhs)
+                children_nodes = self.node_stack[-rhs_length:] if rhs_length > 0 else []
+                # Remove the child nodes from the node stack
+                self.node_stack = self.node_stack[:-rhs_length] if rhs_length > 0 else self.node_stack
+
+                # Create an inner node for the production
+                parent_unid = self.stack[-1]  # The current state after popping
+                # Create an inner node for the production
+                inner_node = InnerNode(None, production.lhs)
+                # Assign the UNIDs of the child nodes
+                inner_node.children = [child.unid for child in children_nodes]
+                self.inner_nodes.append(inner_node)
+
+                # Set the parent UNID of child nodes
+                for child in children_nodes:
+                    child.parent = inner_node.unid
+
+                # Push the inner node onto the node stack
+                self.node_stack.append(inner_node)
+
+
 
                 # Get the current state after popping
                 current_state = self.stack[-1]
@@ -805,3 +880,56 @@ class SLRParser:
         if 0 < line_num <= len(lines):
             return lines[line_num - 1]
         return ""
+    
+    def generate_syntax_tree_xml(self, output_file):
+        import xml.etree.ElementTree as ET
+        import xml.dom.minidom
+
+        # Create the root element
+        syntree = ET.Element('SYNTREE')
+
+        # Root node
+        root_elem = ET.SubElement(syntree, 'ROOT')
+        ET.SubElement(root_elem, 'UNID').text = str(self.syntax_tree_root.unid)
+        ET.SubElement(root_elem, 'SYMB').text = self.syntax_tree_root.symb
+        children_elem = ET.SubElement(root_elem, 'CHILDREN')
+        for child_id in self.syntax_tree_root.children:
+            ET.SubElement(children_elem, 'ID').text = str(child_id)
+
+        # Inner nodes
+        innernodes_elem = ET.SubElement(syntree, 'INNERNODES')
+        for inner_node in self.inner_nodes:
+            in_elem = ET.SubElement(innernodes_elem, 'IN')
+            ET.SubElement(in_elem, 'PARENT').text = str(inner_node.parent)
+            ET.SubElement(in_elem, 'UNID').text = str(inner_node.unid)
+            ET.SubElement(in_elem, 'SYMB').text = inner_node.symb
+            children_elem = ET.SubElement(in_elem, 'CHILDREN')
+            for child_id in inner_node.children:
+                ET.SubElement(children_elem, 'ID').text = str(child_id)
+
+        # Leaf nodes
+        leafnodes_elem = ET.SubElement(syntree, 'LEAFNODES')
+        for leaf_node in self.leaf_nodes:
+            leaf_elem = ET.SubElement(leafnodes_elem, 'LEAF')
+            ET.SubElement(leaf_elem, 'PARENT').text = str(leaf_node.parent)
+            ET.SubElement(leaf_elem, 'UNID').text = str(leaf_node.unid)
+            # Terminal
+            terminal_elem = ET.SubElement(leaf_elem, 'TERMINAL')
+            ET.SubElement(terminal_elem, 'ID').text = str(leaf_node.terminal.type)
+            ET.SubElement(terminal_elem, 'CLASS').text = leaf_node.terminal.type
+            ET.SubElement(terminal_elem, 'WORD').text = leaf_node.terminal.value
+            ET.SubElement(terminal_elem, 'LINE').text = str(leaf_node.terminal.line_num)
+            ET.SubElement(terminal_elem, 'COL').text = str(leaf_node.terminal.col_num)
+
+        # Convert the ElementTree to a string
+        xml_string = ET.tostring(syntree, encoding='utf-8')
+
+        # Parse the string with minidom for pretty-printing
+        dom = xml.dom.minidom.parseString(xml_string)
+        pretty_xml_as_string = dom.toprettyxml(indent="    ")
+
+        # Write the pretty-printed XML to the file
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write(pretty_xml_as_string)
+
+
