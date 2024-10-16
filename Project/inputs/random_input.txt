@@ -1,8 +1,8 @@
 main
-num V_r7, text V_vl, text V_jk, 
+
 begin
-  V_j0 = F_q9("Nndwmq", -91.21725225916187, 24.237760416460418) ;
-  return V_jm ;
-  skip ;
+  V_ia < input ;
+  F_x2("Oa", "Lhtql", "Rmz") ;
+  print V_kz ;
 
 end

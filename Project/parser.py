@@ -837,7 +837,8 @@ class SLRParser:
                 self.node_stack = self.node_stack[:-rhs_length] if rhs_length > 0 else self.node_stack
 
                 # Create an inner node for the production
-                parent_unid = self.stack[-1]  # The current state after popping
+                current_state = self.stack[-1]  # The current state after popping
+
                 # Create an inner node for the production
                 inner_node = InnerNode(None, production.lhs)
                 # Assign the UNIDs of the child nodes
@@ -848,13 +849,12 @@ class SLRParser:
                 for child in children_nodes:
                     child.parent = inner_node.unid
 
+                # If the production is for PROG, set it as the root
+                if production.lhs == 'PROG':
+                    self.syntax_tree_root = inner_node
+
                 # Push the inner node onto the node stack
                 self.node_stack.append(inner_node)
-
-
-
-                # Get the current state after popping
-                current_state = self.stack[-1]
 
                 # Push the LHS non-terminal
                 self.stack.append(production.lhs)
@@ -866,6 +866,7 @@ class SLRParser:
                     raise SyntaxError(f"Goto error for state {current_state} and non-terminal {production.lhs}")
 
                 self.stack.append(goto_state)
+
 
             else:
                 # Invalid action
