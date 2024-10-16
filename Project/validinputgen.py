@@ -41,14 +41,15 @@ def generate_unop():
 def generate_prog(depth=0):
     return f"main\n{generate_globvars(depth)}\n{generate_algo(depth)}\n{generate_functions(depth)}"
 
+
 def generate_globvars(depth=0, indent_level=0):
-    indent = " " * (INDENT_SIZE * indent_level)
     if depth >= MAX_DEPTH or random.choice([True, False]):
-        # Base case: return a single variable with a comma
-        return f"{indent}{generate_vtyp()} {generate_vname()},"
+        # Base case: return epsilon (empty string)
+        return ""
     else:
-        # Recursive case: generate variable followed by GLOBVARS
-        return f"{indent}{generate_vtyp()} {generate_vname()}, {generate_globvars(depth + 1, indent_level)}"
+        # Recursive case
+        return f"{generate_vtyp()} {generate_vname()}, {generate_globvars(depth + 1, indent_level)}"
+   
 
 def generate_algo(depth=0, indent_level=0):
     indent = " " * (INDENT_SIZE * indent_level)
@@ -57,11 +58,12 @@ def generate_algo(depth=0, indent_level=0):
 def generate_instruc(depth=0, indent_level=0):
     indent = " " * (INDENT_SIZE * indent_level)
     if depth >= MAX_DEPTH or random.choice([True, False]):
-        # Base case: return a single command
-        return f"{indent}{generate_command(depth, indent_level)} ;"
+        # Base case: return epsilon (empty string)
+        return ""
     else:
-        # Recursive case: generate command followed by INSTRUC
+        # Recursive case
         return f"{indent}{generate_command(depth, indent_level)} ;\n{generate_instruc(depth + 1, indent_level)}"
+
 
 def generate_command(depth=0, indent_level=0):
     if depth >= MAX_DEPTH:
@@ -100,21 +102,31 @@ def generate_branch(depth=0, indent_level=0):
 def generate_term(depth=0):
     if depth >= MAX_DEPTH:
         return generate_atomic()
-    return random.choice([generate_atomic(), generate_call(), generate_op(depth + 1)])
+    return random.choice([
+        generate_atomic(),
+        generate_call(),
+        generate_op(depth + 1)  # Pass incremented depth
+    ])
+
 
 def generate_op(depth=0):
     if depth >= MAX_DEPTH:
         return f"{generate_unop()}({generate_atomic()})"
-    if random.choice([True, False]):
-        # Ensure we only use an ATOMIC for a UNOP to avoid nested UNOPs
-        return f"{generate_unop()}({generate_atomic()})"
-    return f"{generate_binop()}({generate_arg(depth + 1)}, {generate_arg(depth + 1)})"
+    else:
+        if random.choice([True, False]):
+            return f"{generate_unop()}({generate_arg(depth + 1)})"
+        else:
+            return f"{generate_binop()}({generate_arg(depth + 1)}, {generate_arg(depth + 1)})"
 
 def generate_arg(depth=0):
     if depth >= MAX_DEPTH:
         return generate_atomic()
-    # Avoid generating nested UNOPs in the argument
-    return random.choice([generate_atomic(), generate_binop_arg(depth + 1)])
+    else:
+        return random.choice([
+            generate_atomic(),
+            generate_op(depth + 1)  # Allow nesting of OP within ARG
+        ])
+
 
 def generate_binop_arg(depth=0):
     # Separate function for generating a binary operation argument to avoid nested UNOPs
@@ -123,15 +135,23 @@ def generate_binop_arg(depth=0):
 def generate_cond(depth=0):
     if depth >= MAX_DEPTH:
         return generate_simple()
-    return random.choice([generate_simple(), generate_composit(depth + 1)])
+    else:
+        return random.choice([
+            generate_simple(),
+            generate_composit(depth + 1)
+        ])
 
 def generate_simple():
     return f"{generate_binop()}({generate_atomic()}, {generate_atomic()})"
 
 def generate_composit(depth=0):
     if depth >= MAX_DEPTH:
-        return f"{generate_unop()}({generate_simple()})"
-    return f"{generate_binop()}({generate_simple()}, {generate_simple()})"
+        return generate_simple()
+    else:
+        return random.choice([
+            f"{generate_binop()}({generate_simple(depth + 1)}, {generate_simple(depth + 1)})",
+            f"{generate_unop()}({generate_simple(depth + 1)})"
+        ])
 
 def generate_functions(depth=0, indent_level=0):
     if depth >= MAX_DEPTH or random.choice([True, False]):

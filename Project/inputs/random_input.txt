@@ -1,27 +1,8 @@
 main
-num V_fz,
+num V_r7, text V_vl, text V_jk, 
 begin
-  F_f1("Xscug", V_ki, V_mx) ;
-  print -79.32961440125402 ;
-  V_hq < input ;
+  V_j0 = F_q9("Nndwmq", -91.21725225916187, 24.237760416460418) ;
+  return V_jm ;
   skip ;
-end
-num F_kl(V_f0, V_pn, V_eg)
-{
-  num V_gy, num V_yw, text V_qx,
-  begin
-    print "Ndmhjs" ;
-    skip ;
-  end
-}
-void F_gf(V_w1, V_wd, V_ll)
-{
-  num V_sc, text V_eh, text V_zb,
-  begin
-    skip ;
-  end
-}
-
-end
 
 end
