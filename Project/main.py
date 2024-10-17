@@ -1,6 +1,8 @@
 import os
+import time  # To add delay
 from lexer import Lexer, LexicalError
 from parser import SLRParser
+from semantic import perform_semantic_analysis  # Importing the semantic analysis function
 import xml.etree.ElementTree as ET
 
 # ANSI color codes
@@ -22,7 +24,9 @@ def main():
     for input_file in input_files:
         input_path = os.path.join(input_dir, input_file)
         output_file = os.path.splitext(input_file)[0] + "_lexer_output.xml"
+        syntax_tree_file = os.path.splitext(input_file)[0] + "_syntaxtree.xml"  # Syntax tree file
         output_path = os.path.join(output_dir, output_file)
+        syntax_tree_path = os.path.join(output_dir, syntax_tree_file)  # Full path to syntax tree
 
         print(f"\n{PURPLE}{'='*40}{RESET}")
         print(f"{BLUE}Processing file: {input_file}{RESET}")
@@ -42,13 +46,34 @@ def main():
             print(f"{GREEN}Lexing successful for {input_file}. Output saved to {output_path}.{RESET}")
             print(f"{PURPLE}{'-'*40}{RESET}")
 
-            # Generate XML output
+            # Generate XML output from tokens
             generate_xml(tokens, output_path)
+
+            # Check if the XML file was written correctly
+            if os.path.exists(output_path):
+                print(f"{GREEN}XML file generated at: {output_path}{RESET}")
+            else:
+                print(f"{RED}XML file generation failed for {output_file}.{RESET}")
+                continue
 
             # Parse the XML file with the SLR parser, passing input_text and input_path
             parse_result = parse_xml(output_path, input_path, input_text)
             if parse_result:
                 print(f"{GREEN}Parsing successful for {input_file}.{RESET}")
+                
+                # Introduce a small delay to ensure the syntax tree is written
+                time.sleep(1)  # 1 second delay (can be adjusted)
+
+                # Ensure the syntax tree file exists
+                if os.path.exists(syntax_tree_path):
+                    # Perform Semantic Analysis on the correct syntax tree file
+                    print(f"{BLUE}{'-'*40}{RESET}")
+                    print(f"{BLUE}Starting Semantic Analysis for {syntax_tree_file}.{RESET}")
+                    perform_semantic_analysis(syntax_tree_path)  # Call to semantic analysis with correct file
+                    print(f"{GREEN}Semantic analysis completed successfully for {input_file}.{RESET}")
+                else:
+                    print(f"{RED}Syntax tree file not found: {syntax_tree_path}{RESET}")
+
             else:
                 print(f"{RED}Parsing failed for {input_file}.{RESET}")
 
@@ -58,7 +83,6 @@ def main():
             print(f"{RED}Syntax error in {input_file}: {e}{RESET}")
         except Exception as e:
             print(f"{RED}Error in {input_file}: {e}{RESET}")
-
 
 
 def indent_xml(elem, level=0):
@@ -77,7 +101,6 @@ def indent_xml(elem, level=0):
     else:
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
-
 
 
 def generate_xml(tokens, output_path):
@@ -103,6 +126,8 @@ def generate_xml(tokens, output_path):
 
     tree = ET.ElementTree(root)
     tree.write(output_path, encoding='utf-8', xml_declaration=True)
+    print(f"{GREEN}XML successfully written to {output_path}{RESET}")
+
 
 def parse_xml(xml_file, input_file, input_text):
     """
@@ -118,7 +143,6 @@ def parse_xml(xml_file, input_file, input_text):
     except Exception as e:
         print(f"{RED}An exception was caught during parsing: {e}{RESET}")
         return False
-
 
 
 if __name__ == "__main__":

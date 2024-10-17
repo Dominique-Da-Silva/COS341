@@ -1,6 +1,24 @@
 main
 
 begin
-  halt ;
+
+end
+num F_hv(V_ah, V_s9, V_va)
+{
+  num V_m6, text V_wd, num V_m4,
+  begin
+    print V_b5 ;
+
+  end
+}
+
+end
+void F_ep(V_hk, V_cy, V_mi)
+{
+  text V_pl, text V_az, num V_t7,
+  begin
+
+  end
+}
 
 end
