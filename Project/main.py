@@ -1,5 +1,5 @@
 import os
-import time  # To add delay
+import time
 from lexer import Lexer, LexicalError
 from parser import SLRParser
 from semantic import perform_semantic_analysis  # Importing the semantic analysis function
@@ -24,9 +24,9 @@ def main():
     for input_file in input_files:
         input_path = os.path.join(input_dir, input_file)
         output_file = os.path.splitext(input_file)[0] + "_lexer_output.xml"
-        syntax_tree_file = os.path.splitext(input_file)[0] + "_syntaxtree.xml"  # Syntax tree file
         output_path = os.path.join(output_dir, output_file)
-        syntax_tree_path = os.path.join(output_dir, syntax_tree_file)  # Full path to syntax tree
+        syntax_tree_output = os.path.splitext(input_file)[0] + "_syntaxtree.xml"
+        syntax_tree_path = os.path.join(output_dir, syntax_tree_output)
 
         print(f"\n{PURPLE}{'='*40}{RESET}")
         print(f"{BLUE}Processing file: {input_file}{RESET}")
@@ -61,19 +61,14 @@ def main():
             if parse_result:
                 print(f"{GREEN}Parsing successful for {input_file}.{RESET}")
                 
-                # Introduce a small delay to ensure the syntax tree is written
-                time.sleep(1)  # 1 second delay (can be adjusted)
+                # Delay to ensure the syntax tree file is written
+                time.sleep(1)
 
-                # Ensure the syntax tree file exists
-                if os.path.exists(syntax_tree_path):
-                    # Perform Semantic Analysis on the correct syntax tree file
-                    print(f"{BLUE}{'-'*40}{RESET}")
-                    print(f"{BLUE}Starting Semantic Analysis for {syntax_tree_file}.{RESET}")
-                    perform_semantic_analysis(syntax_tree_path)  # Call to semantic analysis with correct file
-                    print(f"{GREEN}Semantic analysis completed successfully for {input_file}.{RESET}")
-                else:
-                    print(f"{RED}Syntax tree file not found: {syntax_tree_path}{RESET}")
-
+                # Perform Semantic Analysis
+                print(f"{BLUE}{'-'*40}{RESET}")
+                print(f"{BLUE}Starting Semantic Analysis for {input_file}.{RESET}")
+                perform_semantic_analysis(syntax_tree_path, input_path)  # Call to semantic analysis
+                print(f"{GREEN}Semantic analysis completed successfully for {input_file}.{RESET}")
             else:
                 print(f"{RED}Parsing failed for {input_file}.{RESET}")
 
@@ -147,3 +142,4 @@ def parse_xml(xml_file, input_file, input_text):
 
 if __name__ == "__main__":
     main()
+
