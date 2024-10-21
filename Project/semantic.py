@@ -5,36 +5,42 @@ GREEN = '\033[0;32m'
 RED = '\033[0;31m'
 RESET = '\033[0m'
 
+# Define the set of reserved keywords
+reserved_keywords = {'num', 'text', 'begin', 'end', 'if', 'else', 'return', 'main', 'void', 'and', 'or', 'not', 'grt', 'eq', 'add', 'sub', 'mul', 'div', 'input'}
+
 class SemanticError(Exception):
     """ Custom exception for semantic analysis errors. """
-    pass
+    def __init__(self, message, line_number=None, line_content=None):
+        if line_number is not None and line_content is not None:
+            message = f"Error at line {line_number}: {line_content}\n{message}"
+        super().__init__(message)
 
 class Scope:
-    def __init__(self, name, parent_scope=None, level=0):
+    def __init__(self, name, parent_scope=None, level=0, scope_type='block'):
         self.name = name
         self.symbols = {}  # Store variable/function names and their internal unique identifiers
         self.parent_scope = parent_scope
         self.level = level
+        self.scope_type = scope_type
 
-    def declare(self, name, symbol_type, unid):
+    def declare(self, name, symbol_type, unid, line_number=None, line_content=None):
         """ Declares a new variable or function in the current scope. """
         if name in self.symbols:
-            raise SemanticError(f"Error: '{name}' is already declared in this scope '{self.name}'.")
+            raise SemanticError(f"'{name}' is already declared in this scope '{self.name}'.", line_number, line_content)
         self.symbols[name] = {"type": symbol_type, "unid": unid}
 
-    def lookup(self, name):
+    def lookup(self, name, line_number=None, line_content=None):
         """ Looks up a symbol in the current scope or any parent scope. """
         if name in self.symbols:
             return self.symbols[name]
         elif self.parent_scope:
-            return self.parent_scope.lookup(name)
+            return self.parent_scope.lookup(name, line_number, line_content)
         else:
-            raise SemanticError(f"Error: '{name}' is used but not declared in any scope.")
+            raise SemanticError(f"'{name}' is used but not declared in any scope.", line_number, line_content)
 
     def has(self, name):
         """ Checks if a symbol is declared in the current scope (only). """
         return name in self.symbols
-
 
 class SymbolTable:
     def __init__(self):
@@ -43,8 +49,12 @@ class SymbolTable:
         self.unique_id_counter = 0
         self.scopes = [self.global_scope]  # Global scope is the first one
 
-    def enter_scope(self, scope_name):
-        new_scope = Scope(scope_name, parent_scope=self.current_scope, level=self.current_scope.level + 1)
+    def enter_scope(self, scope_name, scope_type='block', level=None):
+        if level is None:
+            new_level = self.current_scope.level + 1
+        else:
+            new_level = level
+        new_scope = Scope(scope_name, parent_scope=self.current_scope, level=new_level, scope_type=scope_type)
         self.current_scope = new_scope
         self.scopes.append(new_scope)
 
@@ -54,20 +64,31 @@ class SymbolTable:
         else:
             raise SemanticError("Attempted to exit global scope, which is not allowed.")
 
-    def declare_symbol(self, name, symbol_type, unid):
-        self.current_scope.declare(name, symbol_type, unid)
+    def declare_symbol(self, name, symbol_type, unid, scope=None, line_number=None, line_content=None):
+        if scope is None:
+            scope = self.current_scope
+        scope.declare(name, symbol_type, unid, line_number, line_content)
 
-    def lookup_symbol(self, name):
-        return self.current_scope.lookup(name)
+    def lookup_symbol(self, name, line_number=None, line_content=None):
+        # Start lookup from the current scope
+        scope = self.current_scope
+        while scope is not None:
+            if name in scope.symbols:
+                return scope.symbols[name]
+            scope = scope.parent_scope  # Move up to the parent scope
+        # If not found in any scope
+        raise SemanticError(f"'{name}' is used but not declared in any scope.", line_number, line_content)
 
     def print_table(self):
         print("\n=== Symbol Table ===")
         for scope in self.scopes:
+            # Skip printing empty block levels
+            if not scope.symbols and "Block_Level" in scope.name:
+                continue
             print(f"Scope: {scope.name} (Level: {scope.level})")
             for name, info in scope.symbols.items():
                 print(f"  {name} -> Type: {info['type']}, UNID: {info['unid']}")
         print("====================\n")
-
 
 def extract_metadata_from_syntax_tree(xml_file):
     """
@@ -90,170 +111,8 @@ def extract_metadata_from_syntax_tree(xml_file):
         word = terminal.find("WORD").text
         class_name = terminal.find("CLASS").text
         unid = leaf.find("UNID").text
-        metadata.append((word, class_name, unid))
-    
+        metadata.append({'word': word, 'class_name': class_name, 'unid': unid})
     return metadata
-
-
-def declare_local_variables(block_text, symbol_table, metadata):
-    """
-    Declare local variables within a function's scope.
-    This function searches for local variable declarations (num/text) within the block of code.
-    """
-    variable_regex = re.compile(r"(num|text)\s+(\w+)")
-
-    # Declare local variables
-    for var_match in variable_regex.finditer(block_text):
-        var_type, var_name = var_match.groups()
-        for name, class_name, unid in metadata:
-            if name == var_name and class_name == "V":
-                symbol_table.declare_symbol(var_name, "var", unid)
-
-
-def analyze_block_scopes(block_text, symbol_table, metadata, current_scope_stack):
-    """
-    Analyze block scopes within a function, marked by 'begin' and 'end'.
-    This function handles entering and exiting block-level scopes inside functions.
-    """
-    begin_regex = re.compile(r"begin")
-    end_regex = re.compile(r"end")
-
-    # Process block scopes defined by 'begin' and 'end'
-    for line in block_text.splitlines():
-        if begin_regex.search(line):
-            # Enter a new block scope
-            block_scope_name = f"Block_Level_{len(current_scope_stack)}"
-            symbol_table.enter_scope(block_scope_name)
-            current_scope_stack.append(symbol_table.current_scope)
-
-        elif end_regex.search(line):
-            # Exit the current block scope
-            if len(current_scope_stack) > 1:  # Prevent exiting global scope
-                symbol_table.exit_scope()
-                current_scope_stack.pop()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def analyze_scopes_from_input_file(input_file, symbol_table, metadata):
-    """
-    Analyze scopes based on the input file to determine scope nesting.
-    """
-    with open(input_file, 'r') as file:
-        input_text = file.read()
-
-    # Regular expressions to identify functions, variables, and function calls
-    function_declaration_regex = re.compile(r"(num|void)\s+(\w+)\s*\(([^)]*)\)\s*\{", re.MULTILINE)
-    function_call_regex = re.compile(r"(\w+)\s*\(([^)]*)\)\s*;")
-    variable_regex = re.compile(r"(num|text)\s+(\w+)")
-    begin_regex = re.compile(r"begin")
-    end_regex = re.compile(r"end")
-
-    # Track scope nesting level
-    current_scope_stack = [symbol_table.global_scope]  # Stack to track scope levels
-
-    # Process function declarations
-    for match in function_declaration_regex.finditer(input_text):
-        return_type, func_name, params = match.groups()
-
-        # Declare the function in the global scope
-        for name, class_name, unid in metadata:
-            if name == func_name and class_name == "FNAME":
-                # Declare in global or current scope if not already declared
-                if not symbol_table.current_scope.has(func_name):
-                    symbol_table.declare_symbol(func_name, "func", unid)
-
-        # Now process the function body as a new scope
-        symbol_table.enter_scope(func_name)
-        current_scope_stack.append(symbol_table.current_scope)
-
-        # Declare function parameters in the function's scope
-        for param in params.split(','):
-            param = param.strip()
-            if param:
-                param_name = param.split()[-1]  # Get the parameter variable name
-                for name, class_name, unid in metadata:
-                    if name == param_name and class_name == "V":
-                        symbol_table.declare_symbol(param_name, "var", unid)
-
-        # Declare local variables within the function
-        declare_local_variables(input_text[match.end():], symbol_table, metadata)
-
-        # Process block scopes within the function
-        analyze_block_scopes(input_text[match.end():], symbol_table, metadata, current_scope_stack)
-
-        # Exit function definition scope after handling
-        if len(current_scope_stack) > 1:  # Ensure we don't exit the global scope
-            symbol_table.exit_scope()
-            current_scope_stack.pop()
-
-    # Now handle function calls (not definitions) separately
-    for call_match in function_call_regex.finditer(input_text):
-        func_name, args = call_match.groups()
-
-        # If the function has already been declared, treat it as a function call
-        if symbol_table.current_scope.has(func_name) or symbol_table.global_scope.has(func_name):
-            # Process the function call
-            process_function_call(func_name, args, symbol_table, metadata)
-        else:
-            raise SemanticError(f"Error: Function '{func_name}' is called but not declared.")
-
-def process_function_call(func_name, params, symbol_table, metadata):
-    """
-    Process function calls and temporarily enter their scopes for argument handling.
-    """
-    # Lookup function to ensure it exists in the current scope or global scope
-    try:
-        symbol_table.lookup_symbol(func_name)
-    except SemanticError:
-        raise SemanticError(f"Error: Function '{func_name}' is called but not declared.")
-
-    # Enter a temporary scope for the function call
-    symbol_table.enter_scope(f"Call_{func_name}")
-    current_scope_stack = [symbol_table.current_scope]  # Track scope levels for the call
-
-    # Declare arguments passed in the function call
-    for arg in params.split(','):
-        arg = arg.strip()
-        if arg:
-            for name, class_name, unid in metadata:
-                if name == arg and class_name == "V":
-                    symbol_table.declare_symbol(arg, "var", unid)
-
-    # Exit the function call scope after processing
-    if len(current_scope_stack) > 1:  # Prevent exiting global scope
-        symbol_table.exit_scope()
-        current_scope_stack.pop()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 def perform_semantic_analysis(xml_file, input_file):
     """
@@ -267,7 +126,180 @@ def perform_semantic_analysis(xml_file, input_file):
         return
 
     # Step 2: Analyze scopes based on the input file
-    analyze_scopes_from_input_file(input_file, symbol_table, metadata)
+    with open(input_file, 'r') as file:
+        lines = file.readlines()
+
+    current_scope_stack = [symbol_table.global_scope]
+    inside_function = False
+
+    for line_number, line in enumerate(lines, start=1):
+        original_line = line.rstrip('\n')
+        line = line.strip()
+
+        # Skip empty lines
+        if not line:
+            continue
+
+        # Begin block
+        if line == 'begin':
+            # Enter new block scope
+            block_scope_name = f"Block_Level_{len(current_scope_stack)}"
+            symbol_table.enter_scope(block_scope_name, scope_type='block')
+            current_scope_stack.append(symbol_table.current_scope)
+            continue
+
+        # End block or function
+        if line == 'end':
+            if len(current_scope_stack) > 1:
+                current_scope = current_scope_stack[-1]
+                if current_scope.scope_type == 'function':
+                    inside_function = False
+                symbol_table.exit_scope()
+                current_scope_stack.pop()
+            continue
+
+        # Function declaration
+        function_decl_match = re.match(r'(num|void)\s+(\w+)\s*\(([^)]*)\)', line)
+        if function_decl_match:
+            return_type, func_name, params = function_decl_match.groups()
+            # Check if the function name is a reserved keyword
+            if func_name in reserved_keywords:
+                raise SemanticError(f"Function name '{func_name}' is a reserved keyword.", line_number, original_line)
+            # Find the unid from metadata
+            unid = None
+            for i, entry in enumerate(metadata):
+                if entry['word'] == func_name and entry['class_name'] == 'FNAME':
+                    unid = entry['unid']
+                    del metadata[i]
+                    break
+            if unid is None:
+                raise SemanticError(f"Function '{func_name}' not found in syntax tree metadata.", line_number, original_line)
+            # Declare function in global scope
+            try:
+                symbol_table.declare_symbol(func_name, "func", unid, scope=symbol_table.global_scope, line_number=line_number, line_content=original_line)
+            except SemanticError as e:
+                raise SemanticError(str(e), line_number, original_line)
+            # Enter function scope
+            symbol_table.enter_scope(func_name, scope_type='function')
+            current_scope_stack.append(symbol_table.current_scope)
+            # Declare function parameters in the function's scope
+            params_list = params.split(',')
+            for param in params_list:
+                param = param.strip()
+                if param:
+                    param_name = param.split()[-1]  # Get parameter name
+                    # Check if the parameter name is a reserved keyword
+                    if param_name in reserved_keywords:
+                        raise SemanticError(f"Parameter name '{param_name}' is a reserved keyword.", line_number, original_line)
+                    # Find the unid from metadata
+                    unid = None
+                    for i, entry in enumerate(metadata):
+                        if entry['word'] == param_name and entry['class_name'] == 'V':
+                            unid = entry['unid']
+                            del metadata[i]
+                            break
+                    if unid is None:
+                        raise SemanticError(f"Parameter '{param_name}' not found in syntax tree metadata.", line_number, original_line)
+                    try:
+                        symbol_table.declare_symbol(param_name, "var", unid, line_number=line_number, line_content=original_line)
+                    except SemanticError as e:
+                        raise SemanticError(str(e), line_number, original_line)
+            inside_function = True
+            continue
+
+        # Variable declaration
+        variable_decl_matches = re.findall(r'(num|text)\s+(\w+)', line)
+        if variable_decl_matches:
+            for var_type, var_name in variable_decl_matches:
+                # Check if the variable name is a reserved keyword
+                if var_name in reserved_keywords:
+                    raise SemanticError(f"Variable name '{var_name}' is a reserved keyword.", line_number, original_line)
+                # Find the unid from metadata
+                unid = None
+                for i, entry in enumerate(metadata):
+                    if entry['word'] == var_name and entry['class_name'] == 'V':
+                        unid = entry['unid']
+                        del metadata[i]
+                        break
+                if unid is None:
+                    raise SemanticError(f"Variable '{var_name}' not found in syntax tree metadata.", line_number, original_line)
+                try:
+                    symbol_table.declare_symbol(var_name, "var", unid, line_number=line_number, line_content=original_line)
+                except SemanticError as e:
+                    raise SemanticError(str(e), line_number, original_line)
+            continue
+
+        # Variable usage in assignments and expressions
+        variable_use_matches = re.findall(r'\b(V_\w+)\b', line)
+        # Exclude string literals
+        if '"' in line or "'" in line:
+            line_no_strings = re.sub(r'".*?"|\'.*?\'', '', line)
+            variable_use_matches = re.findall(r'\b(V_\w+)\b', line_no_strings)
+
+        for var_name in variable_use_matches:
+            # Skip if already handled (e.g., in declarations)
+            if re.match(r'(num|text)\s+' + var_name, line):
+                continue
+            # Skip if part of a function declaration or call
+            if re.match(r'\w+\s*\(.*\)', line):
+                continue
+            try:
+                symbol_table.lookup_symbol(var_name, line_number, original_line)
+            except SemanticError as e:
+                raise SemanticError(str(e), line_number, original_line)
+
+        # Assignment statements
+        assignment_match = re.match(r'(\w+)\s*(<|=)\s*(.+);', line)
+        if assignment_match:
+            var_name, operator, expression = assignment_match.groups()
+            # Check that the variable being assigned to is declared
+            try:
+                symbol_table.lookup_symbol(var_name, line_number, original_line)
+            except SemanticError as e:
+                raise SemanticError(str(e), line_number, original_line)
+
+            # Optionally, check variables used in the expression
+            expression_vars = re.findall(r'\b(V_\w+)\b', expression)
+            for expr_var in expression_vars:
+                try:
+                    symbol_table.lookup_symbol(expr_var, line_number, original_line)
+                except SemanticError as e:
+                    raise SemanticError(str(e), line_number, original_line)
+            continue
+
+        # Function call
+        function_call_match = re.match(r'(\w+)\s*\(([^)]*)\)\s*;', line)
+        if function_call_match:
+            func_name, args = function_call_match.groups()
+            # Ensure function is declared
+            try:
+                symbol_table.lookup_symbol(func_name, line_number, original_line)
+            except SemanticError as e:
+                raise SemanticError(str(e), line_number, original_line)
+
+            # Enter call scope at the same level as current scope
+            symbol_table.enter_scope(f"Call_{func_name}", scope_type='call', level=symbol_table.current_scope.level)
+            current_scope_stack.append(symbol_table.current_scope)
+            # Check arguments are declared
+            args_list = args.split(',')
+            for arg in args_list:
+                arg = arg.strip()
+                if arg:
+                    # Handle string literals (e.g., "Zero")
+                    if arg.startswith('"') and arg.endswith('"'):
+                        continue  # Skip string literals
+                    try:
+                        symbol_table.lookup_symbol(arg, line_number, original_line)
+                    except SemanticError as e:
+                        raise SemanticError(str(e), line_number, original_line)
+            # Exit call scope
+            symbol_table.exit_scope()
+            current_scope_stack.pop()
+            continue
+
+        # Handle 'main' and global variables after 'main'
+        if line == 'main':
+            continue  # 'main' keyword, proceed to next line
 
     # Step 3: Print the symbol table after analysis
     symbol_table.print_table()

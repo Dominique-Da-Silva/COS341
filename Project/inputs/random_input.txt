@@ -1,13 +1,13 @@
 main
-text V_cf, num V_lv, text V_gc, 
+
 begin
+  V_nj = F_m3("Ga", V_a0, -95.25775794452728) ;
 
 end
-void F_p3(V_bs, V_ev, V_lj)
+void F_iw(V_x4, V_lq, V_tu)
 {
-  text V_gy, num V_ok, text V_ui,
+  text V_k8, text V_jl, num V_w1,
   begin
-    F_p3(V_op, "Exhc", V_t7) ;
 
   end
 }
