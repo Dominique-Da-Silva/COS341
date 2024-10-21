@@ -1,41 +1,13 @@
 main
-text V_ad, text V_gt, 
+text V_cf, num V_lv, text V_gc, 
 begin
-  F_ib(V_op, "Y", V_nq) ;
-  halt ;
 
 end
-void F_jf(V_wz, V_i5, V_zj)
+void F_p3(V_bs, V_ev, V_lj)
 {
-  num V_cc, num V_wj, num V_o2,
+  text V_gy, num V_ok, text V_ui,
   begin
-
-  end
-}
-void F_gm(V_lt, V_j6, V_ex)
-{
-  text V_nj, text V_e8, text V_ls,
-  begin
-
-  end
-}
-
-end
-
-end
-num F_ht(V_yn, V_nx, V_gl)
-{
-  text V_m9, num V_s2, text V_jj,
-  begin
-
-  end
-}
-
-end
-num F_ht(V_l1, V_pa, V_ns)
-{
-  text V_n8, text V_lx, num V_ki,
-  begin
+    F_p3(V_op, "Exhc", V_t7) ;
 
   end
 }

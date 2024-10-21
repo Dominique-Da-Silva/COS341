@@ -95,63 +95,25 @@ def extract_metadata_from_syntax_tree(xml_file):
     return metadata
 
 
-def analyze_scopes_from_input_file(input_file, symbol_table, metadata):
+def declare_local_variables(block_text, symbol_table, metadata):
     """
-    Analyze scopes based on the input file to determine scope nesting.
+    Declare local variables within a function's scope.
+    This function searches for local variable declarations (num/text) within the block of code.
     """
-    with open(input_file, 'r') as file:
-        input_text = file.read()
-
-    # Regular expressions to identify functions and scopes
-    function_regex = re.compile(r"(num|void)\s+(\w+)\s*\(([^)]*)\)\s*\{", re.MULTILINE)
     variable_regex = re.compile(r"(num|text)\s+(\w+)")
-    begin_regex = re.compile(r"begin")
-    end_regex = re.compile(r"end")
 
-    # Track scope nesting level
-    current_scope_stack = [symbol_table.global_scope]  # Stack to track scope levels
-
-    # Process functions and declare them in the global scope
-    for match in function_regex.finditer(input_text):
-        return_type, func_name, params = match.groups()
-
-        # Declare the function in the global scope
+    # Declare local variables
+    for var_match in variable_regex.finditer(block_text):
+        var_type, var_name = var_match.groups()
         for name, class_name, unid in metadata:
-            if name == func_name and class_name == "FNAME":
-                symbol_table.declare_symbol(func_name, "func", unid)
-
-        # Enter the function scope
-        symbol_table.enter_scope(func_name)
-        current_scope_stack.append(symbol_table.current_scope)
-
-        # Declare function parameters in the function's scope
-        for param in params.split(','):
-            param = param.strip()
-            if param:
-                param_name = param.split()[-1]  # Get the parameter variable name
-                for name, class_name, unid in metadata:
-                    if name == param_name and class_name == "V":
-                        symbol_table.declare_symbol(param_name, "var", unid)
-
-        # Declare local variables within the function
-        for var_match in variable_regex.finditer(input_text, match.end()):
-            var_type, var_name = var_match.groups()
-            for name, class_name, unid in metadata:
-                if name == var_name and class_name == "V":
-                    symbol_table.declare_symbol(var_name, "var", unid)
-
-        # Process block scopes within the function
-        analyze_block_scopes(input_text[match.end():], symbol_table, metadata, current_scope_stack)
-
-        # Exit function scope after handling
-        if len(current_scope_stack) > 1:  # Ensure we don't exit the global scope
-            symbol_table.exit_scope()
-            current_scope_stack.pop()
+            if name == var_name and class_name == "V":
+                symbol_table.declare_symbol(var_name, "var", unid)
 
 
 def analyze_block_scopes(block_text, symbol_table, metadata, current_scope_stack):
     """
-    Analyze block scopes within a function.
+    Analyze block scopes within a function, marked by 'begin' and 'end'.
+    This function handles entering and exiting block-level scopes inside functions.
     """
     begin_regex = re.compile(r"begin")
     end_regex = re.compile(r"end")
@@ -169,6 +131,128 @@ def analyze_block_scopes(block_text, symbol_table, metadata, current_scope_stack
             if len(current_scope_stack) > 1:  # Prevent exiting global scope
                 symbol_table.exit_scope()
                 current_scope_stack.pop()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def analyze_scopes_from_input_file(input_file, symbol_table, metadata):
+    """
+    Analyze scopes based on the input file to determine scope nesting.
+    """
+    with open(input_file, 'r') as file:
+        input_text = file.read()
+
+    # Regular expressions to identify functions, variables, and function calls
+    function_declaration_regex = re.compile(r"(num|void)\s+(\w+)\s*\(([^)]*)\)\s*\{", re.MULTILINE)
+    function_call_regex = re.compile(r"(\w+)\s*\(([^)]*)\)\s*;")
+    variable_regex = re.compile(r"(num|text)\s+(\w+)")
+    begin_regex = re.compile(r"begin")
+    end_regex = re.compile(r"end")
+
+    # Track scope nesting level
+    current_scope_stack = [symbol_table.global_scope]  # Stack to track scope levels
+
+    # Process function declarations
+    for match in function_declaration_regex.finditer(input_text):
+        return_type, func_name, params = match.groups()
+
+        # Declare the function in the global scope
+        for name, class_name, unid in metadata:
+            if name == func_name and class_name == "FNAME":
+                # Declare in global or current scope if not already declared
+                if not symbol_table.current_scope.has(func_name):
+                    symbol_table.declare_symbol(func_name, "func", unid)
+
+        # Now process the function body as a new scope
+        symbol_table.enter_scope(func_name)
+        current_scope_stack.append(symbol_table.current_scope)
+
+        # Declare function parameters in the function's scope
+        for param in params.split(','):
+            param = param.strip()
+            if param:
+                param_name = param.split()[-1]  # Get the parameter variable name
+                for name, class_name, unid in metadata:
+                    if name == param_name and class_name == "V":
+                        symbol_table.declare_symbol(param_name, "var", unid)
+
+        # Declare local variables within the function
+        declare_local_variables(input_text[match.end():], symbol_table, metadata)
+
+        # Process block scopes within the function
+        analyze_block_scopes(input_text[match.end():], symbol_table, metadata, current_scope_stack)
+
+        # Exit function definition scope after handling
+        if len(current_scope_stack) > 1:  # Ensure we don't exit the global scope
+            symbol_table.exit_scope()
+            current_scope_stack.pop()
+
+    # Now handle function calls (not definitions) separately
+    for call_match in function_call_regex.finditer(input_text):
+        func_name, args = call_match.groups()
+
+        # If the function has already been declared, treat it as a function call
+        if symbol_table.current_scope.has(func_name) or symbol_table.global_scope.has(func_name):
+            # Process the function call
+            process_function_call(func_name, args, symbol_table, metadata)
+        else:
+            raise SemanticError(f"Error: Function '{func_name}' is called but not declared.")
+
+def process_function_call(func_name, params, symbol_table, metadata):
+    """
+    Process function calls and temporarily enter their scopes for argument handling.
+    """
+    # Lookup function to ensure it exists in the current scope or global scope
+    try:
+        symbol_table.lookup_symbol(func_name)
+    except SemanticError:
+        raise SemanticError(f"Error: Function '{func_name}' is called but not declared.")
+
+    # Enter a temporary scope for the function call
+    symbol_table.enter_scope(f"Call_{func_name}")
+    current_scope_stack = [symbol_table.current_scope]  # Track scope levels for the call
+
+    # Declare arguments passed in the function call
+    for arg in params.split(','):
+        arg = arg.strip()
+        if arg:
+            for name, class_name, unid in metadata:
+                if name == arg and class_name == "V":
+                    symbol_table.declare_symbol(arg, "var", unid)
+
+    # Exit the function call scope after processing
+    if len(current_scope_stack) > 1:  # Prevent exiting global scope
+        symbol_table.exit_scope()
+        current_scope_stack.pop()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def perform_semantic_analysis(xml_file, input_file):
