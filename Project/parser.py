@@ -5,16 +5,17 @@ import xml.etree.ElementTree as ET
 '''
 class Token:
     """
-    Token class to store information about each token.
+    Token class represents a lexical token with a type and a value.
     """
-    def __init__(self, token_id, token_class, token_value):
-        self.token_id = token_id
-        self.token_class = token_class
-        self.token_value = token_value
+
+    def __init__(self, type, value, line_num, col_num):
+        self.type = type  # The type of token (e.g., 'NUM_TYPE', 'PRINT', 'VNAME')
+        self.value = value  # The actual value of the token (e.g., 'num', 'print', 'V_x')
+        self.line_num = line_num  # The line number where the token is located
+        self.col_num = col_num  # The column number where the token starts
 
     def __repr__(self):
-        return f'Token({self.token_id}, {self.token_class}, {self.token_value})'
-
+        return f"Token({self.type}, {self.value}, line {self.line_num}, col {self.col_num})"
 
 
 '''
@@ -31,6 +32,34 @@ class ProductionRule:
     def __repr__(self):
         return f"{self.lhs} -> {' '.join(self.rhs)}"
 
+class SyntaxTreeNode:
+    """
+    Base class for nodes in the syntax tree.
+    """
+    _id_counter = 0  # Class variable to assign unique IDs
+
+    def __init__(self):
+        self.unid = SyntaxTreeNode._id_counter
+        SyntaxTreeNode._id_counter += 1
+
+class RootNode(SyntaxTreeNode):
+    def __init__(self, symbol):
+        super().__init__()
+        self.symb = symbol
+        self.children = []
+
+class InnerNode(SyntaxTreeNode):
+    def __init__(self, parent_unid, symbol):
+        super().__init__()
+        self.parent = parent_unid
+        self.symb = symbol
+        self.children = []
+
+class LeafNode(SyntaxTreeNode):
+    def __init__(self, parent_unid, token):
+        super().__init__()
+        self.parent = parent_unid
+        self.terminal = token  # Store the Token object
 
 
 '''
@@ -38,12 +67,13 @@ class ProductionRule:
 The SLR parser class that reads tokens from the XML file, parses the input, and constructs a parse tree.
 '''
 class SLRParser:
-    '''
-    ------------------------------------------------------------------------------------------
-    '''
-    def __init__(self, xml_file):
+    def __init__(self, xml_file, input_text, input_file):
+        SyntaxTreeNode._id_counter = 0
+
+        self.input_file = input_file
         self.tokens = self.load_tokens_from_xml(xml_file)
         self.current_token_index = 0  # Keep track of which token we're parsing
+        self.input_text = input_text  # Store the original input text
 
         # Parsing tables
         self.action_table = {}  # Action table for shift/reduce actions
@@ -57,6 +87,12 @@ class SLRParser:
         # Initialize parsing table and grammar rules
         self.initialize_parsing_table()
         self.initialize_grammar_rules()
+        
+        # Initialize the syntax tree
+        self.syntax_tree_root = None
+        self.inner_nodes = []
+        self.leaf_nodes = []
+
 
 
     '''
@@ -70,18 +106,19 @@ class SLRParser:
 
         self.action_table = {
             (0, 'MAIN'): ('shift', 1),
+            (0, 'EOF'): ('accept',), #added not according to generated table
             (1, 'NUM_TYPE'): ('shift', 4),
             (1, 'TEXT_TYPE'): ('shift', 5),
             (1, 'BEGIN'): ('reduce',1),
             (2, 'BEGIN'): ('shift',7),
-            (3, 'VNAME'): ('shift',9),
-            (4, 'VNAME'): ('reduce',3),
-            (5, 'VNAME') : ('reduce',4),
+            (3, 'V'): ('shift',9),
+            (4, 'V'): ('reduce',3),
+            (5, 'V') : ('reduce',4),
             (6, 'NUM_TYPE'): ('shift', 14),
             (6, 'END'): ('reduce', 47),
             (6, 'VOID'): ('shift', 15),
             (6, 'EOF'): ('reduce', 47),
-            (7, 'VNAME'): ('shift', 9),
+            (7, 'V'): ('shift', 9),
             (7, 'END'): ('reduce', 7),
             (7, 'SKIP'): ('shift', 18),
             (7, 'HALT'): ('shift', 19), 
@@ -95,7 +132,8 @@ class SLRParser:
             (9, 'INPUT_OP'): ('reduce', 5),
             (9, 'ASSIGN'): ('reduce', 5),
             (9, 'RPAREN'): ('reduce', 5),
-            (10, 'EOF'): ('accept'),
+            #(10, 'EOF'): ('accept',),
+            (10, 'EOF'): ('reduce', 0),  # Reduce using Production 0: PROG -> MAIN GLOBVARS ALGO FUNCTIONS
             (11, 'NUM_TYPE'): ('shift', 14),
             (11, 'END'): ('reduce', 47),
             (11, 'VOID'): ('shift', 15),
@@ -108,15 +146,16 @@ class SLRParser:
             (17, 'SEMICOLON'): ('shift', 36),
             (18, 'SEMICOLON'): ('reduce', 9),
             (19, 'SEMICOLON'): ('reduce', 10),
-            (20, 'VNAME'): ('shift', 9),
+            (20, 'V'): ('shift', 9),
             (20, 'CONST_N'): ('shift', 40),
             (20, 'CONST_T'): ('shift', 41),
             (21, 'SEMICOLON'): ('reduce', 12),
             (22, 'SEMICOLON'): ('reduce', 13),
             (23, 'SEMICOLON'): ('reduce', 14),
-            (24, 'VNAME'): ('shift', 8),
+            (24, 'V'): ('shift', 9),
             (24, 'CONST_N'): ('shift', 40),
             (24, 'CONST_T'): ('shift', 41),
+            (24, 'SEMICOLON'): ('reduce', 15),
             (25, 'INPUT_OP'): ('shift', 43),
             (25, 'ASSIGN'): ('shift', 44),
             (26, 'LPAREN'): ('shift', 45),
@@ -135,7 +174,9 @@ class SLRParser:
             (29, 'TEXT_TYPE'): ('shift', 5),
             (29, 'BEGIN'): ('reduce', 1),
             (30, 'END'): ('reduce', 48),
-            (30, 'EOF'): ('reduce', 48),
+            # (30, 'EOF'): ('reduce', 48),
+            # (30, 'EOF'): ('accept',),
+            (30, 'EOF'): ('reduce', 0),  # Reduce using Production 0: PROG -> MAIN GLOBVARS ALGO FUNCTIONS
             (31, 'NUM_TYPE'): ('reduce', 49),
             (31, 'END'): ('reduce', 49),
             (31, 'VOID'): ('reduce', 49),
@@ -151,7 +192,7 @@ class SLRParser:
             (35, 'VOID'): ('reduce', 6),
             (35, 'RBRACE'): ('reduce', 6),
             (35, 'EOF'): ('reduce', 6),
-            (36, 'VNAME'): ('shift', 9),
+            (36, 'V'): ('shift', 9),
             (36, 'END'): ('reduce', 7),
             (36, 'SKIP'): ('shift', 18),
             (36, 'HALT'): ('shift', 19),
@@ -174,7 +215,9 @@ class SLRParser:
             (41, 'RPAREN'): ('reduce', 19),
             (42, 'SEMICOLON'): ('reduce', 15),
             (43, 'INPUT'): ('shift', 66),
-            (44, 'VNAME'): ('shift', 9),
+            (44, 'CONST_N'): ('shift', 40),  # Shifting when encountering a numeric constant (like 2)
+            (44, 'CONST_T'): ('shift', 41), 
+            (44, 'V'): ('shift', 9),
             (44, 'NUM_TYPE'): ('shift', 40),
             (44, 'TEXT_TYPE'): ('shift', 41),
             (44, 'NOT'): ('shift', 59),
@@ -188,9 +231,11 @@ class SLRParser:
             (44, 'MUL'): ('shift', 57),
             (44, 'DIV'): ('shift', 58),
             (44, 'FNAME'): ('shift', 28),
-            (45, 'VNAME'): ('shift', 9),
+            (45, 'V'): ('shift', 9),
             (45, 'NUM_TYPE'): ('shift', 40),
             (45, 'TEXT_TYPE'): ('shift', 41),
+            (45, 'CONST_N'): ('shift', 40),  # Shifting when encountering a numeric constant (like 2)
+            (45, 'CONST_T'): ('shift', 41),
             (46, 'THEN'): ('shift', 74),
             (47, 'THEN'): ('reduce', 31),
             (48, 'THEN'): ('reduce', 32),
@@ -205,11 +250,11 @@ class SLRParser:
             (57, 'LPAREN'): ('reduce', 44),
             (58, 'LPAREN'): ('reduce', 45),
             (59, 'LPAREN'): ('reduce', 36),
-            (60, 'LPAREN'): ('reduce', 47),
+            (60, 'LPAREN'): ('reduce', 37),
             (61, 'BEGIN'): ('reduce', 2),
             (62, 'BEGIN'): ('shift', 7),
-            (63, 'VNAME'): ('shift', 9),
-            (64, 'VNAME'): ('shift', 9),
+            (63, 'V'): ('shift', 9),
+            (64, 'V'): ('shift', 9),
             (65, 'END'): ('reduce', 8),
             (66, 'SEMICOLON'): ('reduce', 20),
             (67, 'SEMICOLON'): ('reduce', 21),
@@ -220,7 +265,7 @@ class SLRParser:
             (72, 'LPAREN'): ('shift', 81),
             (73, 'COMMA'): ('shift', 82),
             (74, 'BEGIN'): ('shift', 7),
-            (75, 'VNAME'): ('shift', 9),
+            (75, 'V'): ('shift', 9),
             (75, 'CONST_N'): ('shift', 40),
             (75, 'CONST_T'): ('shift', 41),
             (75, 'OR'): ('shift', 51),
@@ -241,7 +286,7 @@ class SLRParser:
             (77, 'RBRACE'): ('shift', 89),
             (78, 'COMMA'): ('shift', 90),
             (79, 'COMMA'): ('shift', 91),
-            (80, 'VNAME'): ('shift', 9),
+            (80, 'V'): ('shift', 9),
             (80, 'CONST_N'): ('shift', 40),
             (80, 'CONST_T'): ('shift', 41),
             (80, 'NOT'): ('shift', 59),
@@ -254,7 +299,7 @@ class SLRParser:
             (80, 'SUB'): ('shift', 56),
             (80, 'MUL'): ('shift', 57),
             (80, 'DIV'): ('shift', 58),
-            (81, 'VNAME'): ('shift', 9),
+            (81, 'V'): ('shift', 9),
             (81, 'CONST_N'): ('shift', 40),
             (81, 'CONST_T'): ('shift', 41),
             (81, 'NOT'): ('shift', 59),
@@ -267,7 +312,7 @@ class SLRParser:
             (81, 'SUB'): ('shift', 56),
             (81, 'MUL'): ('shift', 57),
             (81, 'DIV'): ('shift', 58),
-            (82, 'VNAME'): ('shift', 9),
+            (82, 'V'): ('shift', 9),
             (82, 'CONST_N'): ('shift', 40),
             (82, 'CONST_T'): ('shift', 41),
             (83, 'ELSE'): ('shift', 97),
@@ -285,7 +330,7 @@ class SLRParser:
             (89, 'EOF'): ('reduce', 55),
             (90, 'NUM_TYPE'): ('shift', 4),
             (90, 'TEXT_TYPE'): ('shift', 5),
-            (91, 'VNAME'): ('shift', 9),
+            (91, 'V'): ('shift', 9),
             (92, 'RPAREN'): ('shift', 106),
             (93, 'COMMA'): ('reduce', 29),
             (93, 'RPAREN'): ('reduce', 29),
@@ -294,7 +339,7 @@ class SLRParser:
             (95, 'COMMA'): ('shift', 107),
             (96, 'COMMA'): ('shift', 108),
             (97, 'BEGIN'): ('shift', 7),
-            (98, 'VNAME'): ('shift', 9),
+            (98, 'V'): ('shift', 9),
             (98, 'CONST_N'): ('shift', 40),
             (98, 'CONST_T'): ('shift', 41),
             (99, 'OR'): ('shift', 51),
@@ -305,18 +350,18 @@ class SLRParser:
             (99, 'SUB'): ('shift', 56),
             (99, 'MUL'): ('shift', 57),
             (99, 'DIV'): ('shift', 58),
-            (100, 'VNAME'): ('shift', 9),
+            (100, 'V'): ('shift', 9),
             (100, 'CONST_N'): ('shift', 40),
             (100, 'CONST_T'): ('shift', 41),
             (101, 'THEN'): ('reduce', 35),
             (102, 'END'): ('shift', 112),
             (103, 'END'): ('reduce', 57),
-            (104, 'VNAME'): ('shift', 9),
+            (104, 'V'): ('shift', 9),
             (105, 'COMMA'): ('shift', 114),
             (106, 'COMMA'): ('reduce', 27),
             (106, 'SEMICOLON'): ('reduce', 27),
             (106, 'RPAREN'): ('reduce', 27),
-            (107, 'VNAME'): ('shift', 9),
+            (107, 'V'): ('shift', 9),
             (107, 'CONST_N'): ('shift', 40),
             (107, 'CONST_T'): ('shift', 41),
             (107, 'NOT'): ('shift', 59),
@@ -329,7 +374,7 @@ class SLRParser:
             (107, 'SUB'): ('shift', 56),
             (107, 'MUL'): ('shift', 57),
             (107, 'DIV'): ('shift', 58),
-            (108, 'VNAME'): ('shift', 9),
+            (108, 'V'): ('shift', 9),
             (108, 'CONST_N'): ('shift', 40),
             (108, 'CONST_T'): ('shift', 41),
             (109, 'SEMICOLON'): ('reduce', 23),
@@ -340,7 +385,7 @@ class SLRParser:
             (112, 'VOID'): ('reduce', 53),
             (112, 'EOF'): ('reduce', 53),
             (113, 'COMMA'): ('shift', 119),
-            (114, 'VNAME'): ('shift', 9),
+            (114, 'V'): ('shift', 9),
             (115, 'RPAREN'): ('shift', 121),
             (116, 'RPAREN'): ('shift', 122),
             (117, 'COMMA'): ('reduce', 33),
@@ -354,7 +399,7 @@ class SLRParser:
             (121, 'SEMICOLON'): ('reduce', 28),
             (121, 'RPAREN'): ('reduce', 28),
             (122, 'SEMICOLON'): ('reduce', 22),
-            (123, 'VNAME'): ('shift', 9),
+            (123, 'V'): ('shift', 9),
             (124, 'LBRACE'): ('reduce', 50),
             (125, 'COMMA'): ('shift', 126),
             (126, 'BEGIN'): ('reduce', 56)
@@ -362,14 +407,18 @@ class SLRParser:
 
 
         self.goto_table = {
+            (0 , 'PROG'): 1, #added not according to generated table
             (1, 'GLOBVARS'): 2,
-            (1, 'VTYPE'): 3,
+            (1, 'VTYP'): 3,
+            (1, 'PROG'): 0, #added not according to generated table
+            (2, 'PROG'): 0, #added not according to generated table
             (2, 'ALGO'): 6,
             (3, 'VNAME'): 8,
             (6, 'FUNCTIONS'):10,
             (6, 'DECL'): 11,
             (6, 'HEADER'): 12,
             (6, 'FTYP'): 13,
+            (6, 'PROG'): 0, #added not according to generated table
             (7, 'VNAME'): 25,
             (7, 'INSTRUC'): 16,
             (7, 'COMMAND'): 17,
@@ -506,7 +555,7 @@ class SLRParser:
             ProductionRule('VTYP', ['TEXT_TYPE']),
             
             # Production 5
-            ProductionRule('VNAME', ['VNAME_ID']),
+            ProductionRule('VNAME', ['V']),
             
             # Production 6
             ProductionRule('ALGO', ['BEGIN', 'INSTRUC', 'END']),
@@ -681,13 +730,14 @@ class SLRParser:
             token_id = int(tok.find('ID').text)
             token_class = tok.find('CLASS').text
             token_value = tok.find('WORD').text
-            tokens.append(Token(token_id, token_class, token_value))
+            line_num = int(tok.find('LINE').text)  # Read line number from XML
+            col_num = int(tok.find('COL').text)    # Read column number from XML
+            tokens.append(Token(token_class, token_value, line_num, col_num))
 
         # Append the EOF token ('$') to signal the end of input
-        tokens.append(Token(len(tokens) + 1, 'EOF', '$'))
+        tokens.append(Token('EOF', '$', line_num, col_num))
 
         return tokens
-
 
     '''
     ------------------------------------------------------------------------------------------
@@ -720,6 +770,7 @@ class SLRParser:
         """
         # Initialize stack with state 0
         self.stack = [0]
+        self.node_stack = []
 
         while True:
             state = self.stack[-1]  # Current state is on top of the stack
@@ -729,19 +780,60 @@ class SLRParser:
                 # Should not happen as EOF token is added
                 raise SyntaxError("Unexpected end of input.")
 
-            # Get the action from the action table
-            action = self.action_table.get((state, token.token_class))
+            # Get the action from the action table using token type instead of token_class
+            action = self.action_table.get((state, token.type))
 
             if action is None:
-                # Parsing error
-                raise SyntaxError(f"Parsing error at token {token.token_value} ({token.token_class}) at position {self.current_token_index}")
+                # Parsing error: Provide more detailed information about the token's location
+                line_num = token.line_num
+                col_num = token.col_num
+                line_text = self.get_line_text(line_num)
+                underline = ' ' * (col_num - 1) + '^'
+                error_message = (
+                    f"Parsing error at line {line_num}, column {col_num}:\n"
+                    f"{line_text}\n"
+                    f"{underline}\n"
+                    f"Unexpected token {token.value} ({token.type})"
+                )
+                raise SyntaxError(error_message)
+
+            if action[0] == 'accept':
+                if self.syntax_tree_root is None:
+                    if len(self.node_stack) == 1:
+                        self.syntax_tree_root = self.node_stack.pop()
+                    else:
+                        raise Exception("Parser error: syntax_tree_root is None and node stack has unexpected size.")
+                
+                # Parsing completed successfully.
+                print("Parsing completed successfully.")
+
+                # Generate the syntax tree XML
+                import os
+                input_filename = os.path.basename(self.input_file)
+                output_filename = os.path.splitext(input_filename)[0] + '_syntaxtree.xml'
+                output_folder = 'outputs'
+                os.makedirs(output_folder, exist_ok=True)
+                output_file_path = os.path.join(output_folder, output_filename)
+                self.generate_syntax_tree_xml(output_file_path)
+
+                return True
+
+
+            # Print the current state, token, and action on the same line
+            print(f"State: {state}, Current token: {token}, Action: {action}")
 
             if action[0] == 'shift':
                 # Shift action
                 next_state = action[1]
-                self.stack.append(token.token_class)  # Push the token class (terminal symbol)
-                self.stack.append(next_state)         # Push the next state
-                self.advance_token()                  # Move to the next token
+                self.stack.append(token.type)  # Push the token type (terminal symbol)
+                self.stack.append(next_state)  # Push the next state
+                self.advance_token()           # Move to the next token
+                # Create a leaf node for the shifted token
+                # Create a leaf node for the shifted token
+                leaf_node = LeafNode(None, token)  # Parent will be set during reduction
+                self.leaf_nodes.append(leaf_node)
+                # Push the leaf node onto the node stack
+                self.node_stack.append(leaf_node)
 
             elif action[0] == 'reduce':
                 # Reduce action
@@ -752,32 +844,134 @@ class SLRParser:
                 pop_length = 2 * len(production.rhs)
                 for _ in range(pop_length):
                     self.stack.pop()
+                    
+                # Collect the child nodes for this production
+                rhs_length = len(production.rhs)
+                children_nodes = self.node_stack[-rhs_length:] if rhs_length > 0 else []
+                # Remove the child nodes from the node stack
+                self.node_stack = self.node_stack[:-rhs_length] if rhs_length > 0 else self.node_stack
 
-                # Get the current state after popping
-                current_state = self.stack[-1]
+                # Create an inner node for the production
+                current_state = self.stack[-1]  # The current state after popping
 
-                # Push the LHS non-terminal
+                # Create an inner node for the production
+                inner_node = InnerNode(None, production.lhs)
+                # Assign the UNIDs of the child nodes
+                inner_node.children = [child.unid for child in children_nodes]
+                self.inner_nodes.append(inner_node)
+
+                # Set the parent UNID of child nodes
+                for child in children_nodes:
+                    child.parent = inner_node.unid
+
+                # Push the inner node onto the node stack
+                self.node_stack.append(inner_node)
+
+                # **Do not set the parent of inner_node here**
+
+                # If the production is for PROG, set it as the root and accept
+                if production.lhs == 'PROG':
+                    self.syntax_tree_root = inner_node
+                    print("Syntax tree root set to PROG node with UNID:", self.syntax_tree_root.unid)
+                    print("Parsing completed successfully.")
+
+                    # Generate the syntax tree XML
+                    import os
+                    input_filename = os.path.basename(self.input_file)
+                    output_filename = os.path.splitext(input_filename)[0] + '_syntaxtree.xml'
+                    output_folder = 'outputs'
+                    os.makedirs(output_folder, exist_ok=True)
+                    output_file_path = os.path.join(output_folder, output_filename)
+                    self.generate_syntax_tree_xml(output_file_path)
+                    return True
+
                 self.stack.append(production.lhs)
 
                 # Get the next state from the goto table
+                current_state = self.stack[-2]  # The state before the LHS symbol
                 goto_state = self.goto_table.get((current_state, production.lhs))
                 if goto_state is None:
-                    # Goto error
-                    raise SyntaxError(f"Goto error for state {current_state} and non-terminal {production.lhs}")
+                    # If we just reduced to PROG and are in State 0, accept the input
+                    if production.lhs == 'PROG' and current_state == 0:
+                        # Accept the input
+                        self.syntax_tree_root = inner_node
+                        print("Syntax tree root set to PROG node with UNID:", self.syntax_tree_root.unid)
+                        print("Parsing completed successfully.")
+                        # Generate the syntax tree XML
+                        import os
+                        input_filename = os.path.basename(self.input_file)
+                        output_filename = os.path.splitext(input_filename)[0] + '_syntaxtree.xml'
+                        output_folder = 'outputs'
+                        os.makedirs(output_folder, exist_ok=True)
+                        output_file_path = os.path.join(output_folder, output_filename)
+                        self.generate_syntax_tree_xml(output_file_path)
+                        return True
+                    else:
+                        # Goto error
+                        raise SyntaxError(f"Goto error for state {current_state} and non-terminal {production.lhs}")
+                else:
+                    self.stack.append(goto_state)
 
-                self.stack.append(goto_state)
 
-                # Optionally, build parse tree nodes here if needed
 
-            elif action[0] == 'accept':
-                # Accept action
-                print("Parsing completed successfully.")
-                return True
+    def get_line_text(self, line_num):
+        """
+        Get the full line text for error reporting.
+        """
+        lines = self.input_text.splitlines()
+        if 0 < line_num <= len(lines):
+            return lines[line_num - 1]
+        return ""
+    
+    def generate_syntax_tree_xml(self, output_file):
+        import xml.etree.ElementTree as ET
+        import xml.dom.minidom
 
-            else:
-                # Invalid action
-                raise SyntaxError(f"Invalid action {action} for state {state} and token {token.token_class}")
+        # Create the root element
+        syntree = ET.Element('SYNTREE')
 
-            # Uncomment the following lines for debugging purposes
-            # print(f"Stack: {self.stack}")
-            # print(f"Next token: {token}")
+        # Root node
+        root_elem = ET.SubElement(syntree, 'ROOT')
+        ET.SubElement(root_elem, 'UNID').text = str(self.syntax_tree_root.unid)
+        ET.SubElement(root_elem, 'SYMB').text = self.syntax_tree_root.symb
+        children_elem = ET.SubElement(root_elem, 'CHILDREN')
+        for child_id in self.syntax_tree_root.children:
+            ET.SubElement(children_elem, 'ID').text = str(child_id)
+
+        # Inner nodes
+        innernodes_elem = ET.SubElement(syntree, 'INNERNODES')
+        for inner_node in self.inner_nodes:
+            in_elem = ET.SubElement(innernodes_elem, 'IN')
+            ET.SubElement(in_elem, 'PARENT').text = str(inner_node.parent)
+            ET.SubElement(in_elem, 'UNID').text = str(inner_node.unid)
+            ET.SubElement(in_elem, 'SYMB').text = inner_node.symb
+            children_elem = ET.SubElement(in_elem, 'CHILDREN')
+            for child_id in inner_node.children:
+                ET.SubElement(children_elem, 'ID').text = str(child_id)
+
+        # Leaf nodes
+        leafnodes_elem = ET.SubElement(syntree, 'LEAFNODES')
+        for leaf_node in self.leaf_nodes:
+            leaf_elem = ET.SubElement(leafnodes_elem, 'LEAF')
+            ET.SubElement(leaf_elem, 'PARENT').text = str(leaf_node.parent)
+            ET.SubElement(leaf_elem, 'UNID').text = str(leaf_node.unid)
+            # Terminal
+            terminal_elem = ET.SubElement(leaf_elem, 'TERMINAL')
+            ET.SubElement(terminal_elem, 'ID').text = str(leaf_node.terminal.type)
+            ET.SubElement(terminal_elem, 'CLASS').text = leaf_node.terminal.type
+            ET.SubElement(terminal_elem, 'WORD').text = leaf_node.terminal.value
+            ET.SubElement(terminal_elem, 'LINE').text = str(leaf_node.terminal.line_num)
+            ET.SubElement(terminal_elem, 'COL').text = str(leaf_node.terminal.col_num)
+
+        # Convert the ElementTree to a string
+        xml_string = ET.tostring(syntree, encoding='utf-8')
+
+        # Parse the string with minidom for pretty-printing
+        dom = xml.dom.minidom.parseString(xml_string)
+        pretty_xml_as_string = dom.toprettyxml(indent="    ")
+
+        # Write the pretty-printed XML to the file
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write(pretty_xml_as_string)
+
+

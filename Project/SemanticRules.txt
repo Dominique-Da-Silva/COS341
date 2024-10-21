@@ -1,0 +1,19 @@
+
+Functions:
+1. Main Program Scope: The main program forms the highest-level scope.
+2. Function Declaration: Each function declaration creates its own scope.
+3. Child Scope Naming: A child scope may not share the same name as its immediate parent or any of its sibling scopes within the same parent.
+4. Call Command Rules: A `CALL` command may refer to an immediate child scope or its own scope (to allow recursion).
+5. Main Program Recursion: Recursion to the main program is not allowed.
+6. Error Reporting: If any of the above rules are violated, the system must throw an error.
+
+Variables:
+1. Unique Variable Declarations: No variable name may be declared twice in the same scope.
+2. Declaration Resolution: A declared variable must be found within its own scope or in any higher ancestor scope.
+3. Nearest Declaration: If a variable name is declared in multiple scopes, the nearest declaration (in terms of scope hierarchy) is the relevant version for that variable.
+4. Mandatory Declaration: Every used variable name must have a valid declaration within the allowed scopes.
+5. Variable vs Function Names: No variable may share the same name as a function.
+6. Reserved Keywords: No variable name may be identical to a reserved keyword.
+7. Scope Distinction: Two variables with the same name are considered different computational entities if they are declared in different scopes.
+8. Error Handling: If any of these rules are violated, an error must be thrown.
+
