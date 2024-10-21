@@ -6,7 +6,8 @@ RED = '\033[0;31m'
 RESET = '\033[0m'
 
 # Define the set of reserved keywords
-reserved_keywords = {'num', 'text', 'begin', 'end', 'if', 'else', 'return', 'main', 'void', 'and', 'or', 'not', 'grt', 'eq', 'add', 'sub', 'mul', 'div', 'input'}
+reserved_keywords = {'num', 'text', 'begin', 'end', 'if', 'else', 'return', 'main', 'void',
+                     'and', 'or', 'not', 'grt', 'eq', 'add', 'sub', 'mul', 'div', 'input'}
 
 class SemanticError(Exception):
     """ Custom exception for semantic analysis errors. """
@@ -46,7 +47,6 @@ class SymbolTable:
     def __init__(self):
         self.global_scope = Scope("global", level=0)
         self.current_scope = self.global_scope
-        self.unique_id_counter = 0
         self.scopes = [self.global_scope]  # Global scope is the first one
 
     def enter_scope(self, scope_name, scope_type='block', level=None):
@@ -125,10 +125,51 @@ def perform_semantic_analysis(xml_file, input_file):
     if not metadata:
         return
 
-    # Step 2: Analyze scopes based on the input file
+    # Build a mapping from (word, class_name) to list of unids
+    metadata_map = {}
+    for entry in metadata:
+        key = (entry['word'], entry['class_name'])
+        if key not in metadata_map:
+            metadata_map[key] = []
+        metadata_map[key].append(entry['unid'])
+
+    # Read the entire input file
     with open(input_file, 'r') as file:
         lines = file.readlines()
 
+    # First Pass: Collect all function declarations
+    for line_number, line in enumerate(lines, start=1):
+        original_line = line.rstrip('\n')
+        line = line.strip()
+
+        # Skip empty lines
+        if not line:
+            continue
+
+        # Function declaration
+        function_decl_match = re.match(r'(num|void)\s+(\w+)\s*\(([^)]*)\)', line)
+        if function_decl_match:
+            return_type, func_name, params = function_decl_match.groups()
+            # Check if the function name is a reserved keyword
+            if func_name in reserved_keywords:
+                raise SemanticError(f"Function name '{func_name}' is a reserved keyword.", line_number, original_line)
+            # Check if function is already declared in global scope
+            if symbol_table.global_scope.has(func_name):
+                raise SemanticError(f"Function '{func_name}' is already declared in the global scope.", line_number, original_line)
+            # Find the unid from metadata
+            key = (func_name, 'FNAME')
+            unid_list = metadata_map.get(key, [])
+            if unid_list:
+                unid = unid_list.pop(0)
+            else:
+                raise SemanticError(f"Function '{func_name}' not found in syntax tree metadata.", line_number, original_line)
+            # Declare function in global scope
+            try:
+                symbol_table.declare_symbol(func_name, "func", unid, scope=symbol_table.global_scope, line_number=line_number, line_content=original_line)
+            except SemanticError as e:
+                raise SemanticError(str(e), line_number, original_line)
+
+    # Second Pass: Perform the semantic analysis
     current_scope_stack = [symbol_table.global_scope]
     inside_function = False
 
@@ -161,28 +202,13 @@ def perform_semantic_analysis(xml_file, input_file):
         # Function declaration
         function_decl_match = re.match(r'(num|void)\s+(\w+)\s*\(([^)]*)\)', line)
         if function_decl_match:
-            return_type, func_name, params = function_decl_match.groups()
-            # Check if the function name is a reserved keyword
-            if func_name in reserved_keywords:
-                raise SemanticError(f"Function name '{func_name}' is a reserved keyword.", line_number, original_line)
-            # Find the unid from metadata
-            unid = None
-            for i, entry in enumerate(metadata):
-                if entry['word'] == func_name and entry['class_name'] == 'FNAME':
-                    unid = entry['unid']
-                    del metadata[i]
-                    break
-            if unid is None:
-                raise SemanticError(f"Function '{func_name}' not found in syntax tree metadata.", line_number, original_line)
-            # Declare function in global scope
-            try:
-                symbol_table.declare_symbol(func_name, "func", unid, scope=symbol_table.global_scope, line_number=line_number, line_content=original_line)
-            except SemanticError as e:
-                raise SemanticError(str(e), line_number, original_line)
+            # Function already declared in first pass
+            func_name = function_decl_match.group(2)
             # Enter function scope
             symbol_table.enter_scope(func_name, scope_type='function')
             current_scope_stack.append(symbol_table.current_scope)
             # Declare function parameters in the function's scope
+            params = function_decl_match.group(3)
             params_list = params.split(',')
             for param in params_list:
                 param = param.strip()
@@ -191,14 +217,15 @@ def perform_semantic_analysis(xml_file, input_file):
                     # Check if the parameter name is a reserved keyword
                     if param_name in reserved_keywords:
                         raise SemanticError(f"Parameter name '{param_name}' is a reserved keyword.", line_number, original_line)
+                    # Check if parameter is already declared in current scope
+                    if symbol_table.current_scope.has(param_name):
+                        raise SemanticError(f"Parameter '{param_name}' is already declared in this scope.", line_number, original_line)
                     # Find the unid from metadata
-                    unid = None
-                    for i, entry in enumerate(metadata):
-                        if entry['word'] == param_name and entry['class_name'] == 'V':
-                            unid = entry['unid']
-                            del metadata[i]
-                            break
-                    if unid is None:
+                    key = (param_name, 'V')
+                    unid_list = metadata_map.get(key, [])
+                    if unid_list:
+                        unid = unid_list.pop(0)
+                    else:
                         raise SemanticError(f"Parameter '{param_name}' not found in syntax tree metadata.", line_number, original_line)
                     try:
                         symbol_table.declare_symbol(param_name, "var", unid, line_number=line_number, line_content=original_line)
@@ -214,14 +241,15 @@ def perform_semantic_analysis(xml_file, input_file):
                 # Check if the variable name is a reserved keyword
                 if var_name in reserved_keywords:
                     raise SemanticError(f"Variable name '{var_name}' is a reserved keyword.", line_number, original_line)
+                # Check if variable is already declared in current scope
+                if symbol_table.current_scope.has(var_name):
+                    raise SemanticError(f"Variable '{var_name}' is already declared in this scope '{symbol_table.current_scope.name}'.", line_number, original_line)
                 # Find the unid from metadata
-                unid = None
-                for i, entry in enumerate(metadata):
-                    if entry['word'] == var_name and entry['class_name'] == 'V':
-                        unid = entry['unid']
-                        del metadata[i]
-                        break
-                if unid is None:
+                key = (var_name, 'V')
+                unid_list = metadata_map.get(key, [])
+                if unid_list:
+                    unid = unid_list.pop(0)
+                else:
                     raise SemanticError(f"Variable '{var_name}' not found in syntax tree metadata.", line_number, original_line)
                 try:
                     symbol_table.declare_symbol(var_name, "var", unid, line_number=line_number, line_content=original_line)
@@ -288,6 +316,12 @@ def perform_semantic_analysis(xml_file, input_file):
                     # Handle string literals (e.g., "Zero")
                     if arg.startswith('"') and arg.endswith('"'):
                         continue  # Skip string literals
+                    # Handle numerical constants
+                    try:
+                        float(arg)
+                        continue  # Skip numerical constants
+                    except ValueError:
+                        pass  # Not a number, proceed to check declaration
                     try:
                         symbol_table.lookup_symbol(arg, line_number, original_line)
                     except SemanticError as e:
