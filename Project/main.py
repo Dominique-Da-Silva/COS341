@@ -3,6 +3,7 @@ import time
 from lexer import Lexer, LexicalError
 from parser import SLRParser
 from semantic import perform_semantic_analysis  # Importing the semantic analysis function
+from typecheck import type_check_input_file  # Importing the type checking function
 import xml.etree.ElementTree as ET
 
 # ANSI color codes
@@ -69,6 +70,12 @@ def main():
                 print(f"{BLUE}Starting Semantic Analysis for {input_file}.{RESET}")
                 perform_semantic_analysis(syntax_tree_path, input_path)  # Call to semantic analysis
                 print(f"{GREEN}Semantic analysis completed successfully for {input_file}.{RESET}")
+
+                # Perform Type Checking
+                print(f"{BLUE}{'-'*40}{RESET}")
+                print(f"{BLUE}Starting Type Checking for {input_file}.{RESET}")
+                type_check_input_file(input_path)  # Call to type checking
+                print(f"{GREEN}Type checking completed successfully for {input_file}.{RESET}")
             else:
                 print(f"{RED}Parsing failed for {input_file}.{RESET}")
 
@@ -76,9 +83,10 @@ def main():
             print(f"{RED}Lexing failed for {input_file}: {e}{RESET}")
         except SyntaxError as e:
             print(f"{RED}Syntax error in {input_file}: {e}{RESET}")
+        except TypeError as e:
+            print(f"{RED}Type error in {input_file}: {e}{RESET}")
         except Exception as e:
             print(f"{RED}Error in {input_file}: {e}{RESET}")
-
 
 def indent_xml(elem, level=0):
     """
@@ -96,7 +104,6 @@ def indent_xml(elem, level=0):
     else:
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
-
 
 def generate_xml(tokens, output_path):
     """
@@ -123,7 +130,6 @@ def generate_xml(tokens, output_path):
     tree.write(output_path, encoding='utf-8', xml_declaration=True)
     print(f"{GREEN}XML successfully written to {output_path}{RESET}")
 
-
 def parse_xml(xml_file, input_file, input_text):
     """
     Use the SLRParser to parse the XML token stream.
@@ -139,7 +145,5 @@ def parse_xml(xml_file, input_file, input_text):
         print(f"{RED}An exception was caught during parsing: {e}{RESET}")
         return False
 
-
 if __name__ == "__main__":
     main()
-
