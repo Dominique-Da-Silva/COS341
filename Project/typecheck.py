@@ -107,37 +107,30 @@ class SymbolTable:
 
     def print_table(self):
         print("\n=== Type Table ===")
+        
         for scope in self.scopes:
             # Skip printing empty block levels
             if not scope.symbols:
                 continue
 
-            # Determine scope label
-            if scope.name == "Global":
-                print(f"Scope: Global")
-            elif scope.scope_type == 'function':
-                # Function parameters
-                print(f"Scope: {scope.name} Parameters")
-            elif scope.scope_type == 'function_body':
-                # Function local variables
-                print(f"Scope: {scope.func_name} Local Variables")
-            elif scope.scope_type == 'main':
-                print(f"Scope: main")
-            else:
-                # Other blocks (if any)
-                print(f"Scope: {scope.name}")
-            # Print symbols
+            # Print the scope name
+            print(f"Scope: {scope.name}")
+
+            # Print all symbols in the current scope
             for name, info in scope.symbols.items():
                 if info['type'] == 'func':
                     # For functions, display 'Return Type'
                     return_type = info.get('data_type', 'Unknown')
                     print(f"  {name} -> Return Type: {return_type}")
                 else:
+                    # For variables, display 'Data Type'
                     data_type = info.get('data_type', 'Unknown')
                     if data_type is None:
                         data_type = 'text'
                     print(f"  {name} -> Data Type: {data_type}")
+        
         print("====================\n")
+
 
 def type_check_input_file(input_file):
     """
