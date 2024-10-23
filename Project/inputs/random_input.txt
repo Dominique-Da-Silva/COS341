@@ -1,0 +1,50 @@
+main
+
+begin
+  halt ;
+  if div("V_my", "V_lz") then
+      begin
+        F_hb ( "3", 3, 3) ;
+      end
+    else
+      begin
+
+      end ;
+
+end
+num F_hb(V_by, V_pe, V_ek)
+{
+  text V_wx, num V_c0, num V_bm,
+  begin
+
+  end
+}
+num F_gr(V_za, V_kg, V_zr)
+{
+  text V_mo, text V_ko, text V_cj,
+  begin
+
+  end
+}
+
+end
+
+end
+num F_ne(V_fu, V_po, V_pe)
+{
+  text V_ic, num V_ja, text V_zq,
+  begin
+
+  end
+}
+
+end
+num F_wj(V_h9, V_fq, V_a1)
+{
+  num V_di, text V_gg, num V_p5,
+  begin
+
+  end
+}
+
+end

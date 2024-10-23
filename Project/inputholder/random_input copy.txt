@@ -18,9 +18,9 @@ begin
 end
 }
 
-void F_display ( V_message , V_value , V_dummy )
+num F_display ( V_message , V_value , V_dummy )
 {
-num V_temp1 , text V_temp2 , num V_temp3 ,
+num V_temp1 , num V_temp2 , num V_temp3 ,
 begin
   V_temp1 = V_value ;
   V_temp2 = V_message ;

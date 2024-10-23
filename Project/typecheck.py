@@ -404,11 +404,13 @@ def type_check_expression(expression, symbol_table, line_number=None, line_conte
     if expression == 'input':
         return 'num'
 
-    # Handle literals
+    # Handle numeric literals
     if re.match(r'^\d+(\.\d+)?$', expression):
         return 'num'
+
+    # Handle string literals
     if re.match(r'^".*"$', expression):
-        return 'text'  # Return 'text' for string literals
+        return 'text'
 
     # Handle variables
     try:
@@ -417,20 +419,41 @@ def type_check_expression(expression, symbol_table, line_number=None, line_conte
         if var_type:
             return var_type
         else:
-            # Type not known yet
-            if param_types is not None and expression in param_types:
-                return 'Unknown'
-            else:
-                return 'Unknown'
+            return 'Unknown'
     except SemanticError:
         pass  # Not a variable, proceed to next check
 
-    # Built-in unary operators
-    built_in_unops = {'not', 'sqrt'}
     # Built-in binary operators
     built_in_binops = {'add', 'sub', 'mul', 'div', 'grt', 'eq', 'and', 'or'}
 
-    # Handle function calls and built-in operators
+    # Handle binary operators
+    binop_match = re.match(r'(\w+)\s*\((.*)\)', expression)
+    if binop_match:
+        func_name, args = binop_match.groups()
+        args = args.strip()
+        args_list = [arg.strip() for arg in args.split(',')] if args else []
+
+        # If the function is a built-in binary operator, handle it
+        if func_name in built_in_binops:
+            if len(args_list) != 2:
+                raise TypeError(f"Operator '{func_name}' requires two arguments, but got {len(args_list)}.", 
+                                input_file=None, line_number=line_number, line_content=line_content)
+
+            # Type check both arguments of the binary operator
+            arg1_type = type_check_expression(args_list[0], symbol_table, line_number=line_number, line_content=line_content)
+            arg2_type = type_check_expression(args_list[1], symbol_table, line_number=line_number, line_content=line_content)
+
+            # Ensure both arguments are of type 'num'
+            if arg1_type != 'num':
+                raise TypeError(f"Operator '{func_name}' requires 'num' type arguments, but got '{arg1_type}' for the first argument.", 
+                                input_file=None, line_number=line_number, line_content=line_content)
+            if arg2_type != 'num':
+                raise TypeError(f"Operator '{func_name}' requires 'num' type arguments, but got '{arg2_type}' for the second argument.", 
+                                input_file=None, line_number=line_number, line_content=line_content)
+
+            return 'num'
+
+    # Handle function calls (after binary operators)
     func_call_match = re.match(r'(\w+)\s*\((.*)\)', expression)
     if func_call_match:
         func_name, args = func_call_match.groups()

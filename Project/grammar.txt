@@ -43,7 +43,7 @@ BINOP -> grt
 BINOP -> add
 BINOP -> sub
 BINOP -> mul
-BINOP -> di
+BINOP -> div
 FNAME -> F
 FUNCTIONS -> ''
 FUNCTIONS -> DECL FUNCTIONS
