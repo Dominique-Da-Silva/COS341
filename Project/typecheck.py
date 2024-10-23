@@ -166,29 +166,38 @@ def type_check_input_file(input_file):
             continue
 
         # Function declaration
-        function_decl_match = re.match(r'(num|void|text)\s+(\w+)\s*\(([^)]*)\)', line)
+                # Function declaration
+        function_decl_match = re.match(r'(num)\s+(\w+)\s*\(([^)]*)\)', line)
         if function_decl_match:
             in_global_scope = False  # We've encountered a function declaration; we're no longer in global scope
             return_type, func_name, params = function_decl_match.groups()
+
             # Check if the function name is a reserved keyword
             if func_name in reserved_keywords:
-                # Pass line_number and line_content as keyword arguments
-                raise SemanticError(f"Function name '{func_name}' is a reserved keyword.", 
+                raise SemanticError(f"Function name '{func_name}' is a reserved keyword.",
                                     line_number=line_number, line_content=original_line)
-            # Check if function is already declared in global scope
+
+            # Check if the function is already declared in the global scope
             if symbol_table.global_scope.has(func_name):
-                # Pass line_number and line_content as keyword arguments
-                raise SemanticError(f"Function '{func_name}' is already declared in the global scope.", 
+                raise SemanticError(f"Function '{func_name}' is already declared in the global scope.",
                                     line_number=line_number, line_content=original_line)
-            # Declare function in global scope with return type
-            try:
-                symbol_table.declare_symbol(func_name, "func", data_type=return_type, 
-                                           scope=symbol_table.global_scope, 
-                                           line_number=line_number, line_content=original_line)
-            except SemanticError as e:
-                # Pass line_number and line_content as keyword arguments
-                raise SemanticError(str(e), line_number=line_number, line_content=original_line)
+
+            # Declare function in the global scope with return type num (only)
+            symbol_table.declare_symbol(func_name, "func", data_type=return_type, 
+                                        scope=symbol_table.global_scope, 
+                                        line_number=line_number, line_content=original_line)
+
+            # Declare function parameters in the function's scope
+            params_list = params.split(',')
+            for param in params_list:
+                param = param.strip()
+                if param:
+                    param_name = param
+                    # Declare parameter in current scope and enforce `num` type
+                    symbol_table.declare_symbol(param_name, "var", data_type="num", 
+                                                line_number=line_number, line_content=original_line)
             continue
+
 
         # Variable declarations in global scope
         if in_global_scope:
@@ -279,6 +288,7 @@ def type_check_input_file(input_file):
             continue
 
         # Function declaration
+                # Function declaration
         function_decl_match = re.match(r'(num|void|text)\s+(\w+)\s*\(([^)]*)\)\s*{?', line)
         if function_decl_match:
             func_name = function_decl_match.group(2)
@@ -286,25 +296,21 @@ def type_check_input_file(input_file):
             # Enter function scope
             symbol_table.enter_scope(func_name, scope_type='function')
             current_scope_stack.append(symbol_table.current_scope)
+
             # Declare function parameters in the function's scope
             params = function_decl_match.group(3)
             params_list = params.split(',')
-            param_types = {}  # Dictionary to hold possible types for each parameter
             for param in params_list:
                 param = param.strip()
                 if param:
                     param_name = param
-                    # Declare parameter in current scope without data_type
-                    try:
-                        symbol_table.declare_symbol(param_name, "var", data_type=None, 
-                                                   line_number=line_number, line_content=original_line)
-                    except SemanticError as e:
-                        # Pass line_number and line_content as keyword arguments
-                        raise SemanticError(str(e), line_number=line_number, line_content=original_line)
-                    # Initialize possible types for the parameter
-                    param_types[param_name] = set()
+                    # **Update: Declare parameter in current scope and enforce `num` type upfront**
+                    symbol_table.declare_symbol(param_name, "var", data_type="num", 
+                                                line_number=line_number, line_content=original_line)
+
             inside_function = True
             continue
+
 
         # Variable declaration
         variable_decl_matches = re.findall(r'(num|text)\s+(\w+)', line)
@@ -329,29 +335,31 @@ def type_check_input_file(input_file):
                     raise SemanticError(str(e), line_number=line_number, line_content=original_line)
             continue
 
-        # Assignment statement
+                # Assignment statement
         assignment_match = re.match(r'(\w+)\s*(<|=)\s*(.+);', line)
         if assignment_match:
             var_name, operator, expression = assignment_match.groups()
+
             # Check that the variable being assigned to is declared
             try:
                 var_info = symbol_table.lookup_symbol(var_name, line_number=line_number, line_content=original_line)
             except SemanticError as e:
-                # Pass line_number and line_content as keyword arguments
                 raise SemanticError(str(e), line_number=line_number, line_content=original_line)
 
             # Type checking for the assignment
             expr_type = type_check_expression(expression, symbol_table, line_number=line_number, 
-                                             line_content=original_line, param_types=param_types)
+                                             line_content=original_line)
             var_type = var_info.get('data_type', None)
+
+            # Enforce that variable must have a type already; no type inference allowed
             if var_type is None:
-                # Variable declared without type, assign inferred type
-                var_info['data_type'] = expr_type
+                raise TypeError(f"Variable '{var_name}' must be declared with a type before use.", 
+                                line_number=line_number, line_content=original_line)
             elif var_type != expr_type:
-                # Pass line_number and line_content as keyword arguments
                 raise TypeError(f"Type mismatch: Cannot assign {expr_type} to {var_type}.", 
                                 line_number=line_number, line_content=original_line)
             continue
+
 
         # 'return' statement
         return_match = re.match(r'return\s+(.+);', line)
@@ -378,18 +386,24 @@ def type_check_input_file(input_file):
             continue
 
         # Handle function calls
+                # Handle function calls
         func_call_match = re.match(r'(\w+)\s*\((.*)\)\s*;', line)
         if func_call_match:
             func_name, args = func_call_match.groups()
             args = args.strip()
             args_list = [arg.strip() for arg in args.split(',')] if args else []
-            # Type-check the function call arguments
+
+            # **Update: Verify that each argument is of type `num`**
             for arg in args_list:
                 arg_type = type_check_expression(arg, symbol_table, 
                                                  line_number=line_number, 
-                                                 line_content=original_line, 
-                                                 param_types=param_types)
+                                                 line_content=original_line)
+
+                if arg_type != 'num':
+                    raise TypeError(f"Function '{func_name}' expects 'num' type arguments, got '{arg_type}'.", 
+                                    line_number=line_number, line_content=original_line)
             continue
+
 
         # Handle other statements as needed
         # ...
