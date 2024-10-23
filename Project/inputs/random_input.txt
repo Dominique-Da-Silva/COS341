@@ -1,0 +1,31 @@
+main
+num V_x , num V_y , num V_result ,
+begin
+  V_x < input ;
+  V_y < input ;
+  V_result = add ( V_x , V_y ) ;
+  print V_result ;
+end
+
+num F_calculate ( V_a , V_b , V_c )
+{
+num V_sum , num V_difference , num V_product ,
+begin
+  V_sum = add ( V_a , V_b ) ;
+  V_difference = sub ( V_a , 10 ) ;
+  V_product = mul ( V_b , V_c ) ;
+  return V_sum ;
+end
+}
+
+void F_display ( V_message , V_value , V_dummy )
+{
+num V_temp1 , text V_temp2 , num V_temp3 ,
+begin
+  V_temp1 = V_value ;
+  V_temp2 = V_message ;
+  V_temp3 = add ( V_temp1 , V_temp2 ) ;
+  print V_temp3 ;
+end
+}
+end

@@ -27,7 +27,7 @@ num F_average ( V_a , V_b , V_dummy )
 num V_sum , num V_count , num V_result ,
 begin
   V_sum = add ( V_a , V_b ) ;
-  V_count = 2 ;
+  V_count = V_sum ;
   V_result = div ( V_sum , V_count ) ;
 end
 }
