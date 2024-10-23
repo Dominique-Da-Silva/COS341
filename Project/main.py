@@ -5,6 +5,7 @@ from parser import SLRParser
 from semantic import perform_semantic_analysis  # Importing the semantic analysis function
 from typecheck import type_check_input_file  # Importing the type checking function
 import xml.etree.ElementTree as ET
+from translate import translate_to_basic  # Importing the translation function from the translator module
 
 # ANSI color codes
 GREEN = '\033[0;32m'
@@ -76,6 +77,16 @@ def main():
                 print(f"{BLUE}Starting Type Checking for {input_file}.{RESET}")
                 type_check_input_file(input_path)  # Call to type checking
                 print(f"{GREEN}Type checking completed successfully for {input_file}.{RESET}")
+
+                # Translate to BASIC and print to terminal
+                print(f"{BLUE}{'-'*40}{RESET}")
+                print(f"{BLUE}Translating {input_file} to BASIC syntax...{RESET}")
+                
+                # Translate the input to BASIC and print it
+                basic_code = translate_to_basic(input_text.splitlines())
+                print(f"\n{GREEN}Generated BASIC Code for {input_file}:{RESET}\n")
+                print(basic_code)
+
             else:
                 print(f"{RED}Parsing failed for {input_file}.{RESET}")
 

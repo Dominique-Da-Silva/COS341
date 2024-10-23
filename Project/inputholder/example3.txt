@@ -10,7 +10,7 @@ begin
     end
   else
     begin
-      if or ( eq ( "V_x" , 0 ) , eq ( V_y , 0 ) ) then
+      if or ( eq ( V_x , 0 ) , eq ( V_y , 0 ) ) then
         begin
           return "Zero" ;
         end
