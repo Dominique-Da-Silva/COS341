@@ -355,22 +355,24 @@ def type_check_input_file(input_file):
             continue
 
         # Handle function calls
+        # Handle function calls
         func_call_match = re.match(r'(\w+)\s*\((.*)\)\s*;', line)
         if func_call_match:
             func_name, args = func_call_match.groups()
             args = args.strip()
             args_list = [arg.strip() for arg in args.split(',')] if args else []
 
-            # **Verify that each argument is of type `num`**
+            # Verify that each argument is of type 'num'
             for arg in args_list:
                 arg_type = type_check_expression(arg, symbol_table, 
-                                                 line_number=line_number, 
-                                                 line_content=original_line)
+                                                line_number=line_number, 
+                                                line_content=original_line)
 
                 if arg_type != 'num':
-                    raise TypeError(f"Function '{func_name}' expects 'num' type arguments, got '{arg_type}'.", 
+                    raise TypeError(f"Function '{func_name}' expects 'num' type arguments, but got '{arg_type}' for argument '{arg}'.", 
                                     input_file, line_number, original_line)
             continue
+
 
         # Handle other statements as needed
         # ...
@@ -400,14 +402,13 @@ def type_check_expression(expression, symbol_table, line_number=None, line_conte
 
     # Handle 'input' keyword
     if expression == 'input':
-        # Assuming 'input' returns 'num'
         return 'num'
 
     # Handle literals
     if re.match(r'^\d+(\.\d+)?$', expression):
         return 'num'
     if re.match(r'^".*"$', expression):
-        return 'text'
+        return 'text'  # Return 'text' for string literals
 
     # Handle variables
     try:
@@ -418,10 +419,8 @@ def type_check_expression(expression, symbol_table, line_number=None, line_conte
         else:
             # Type not known yet
             if param_types is not None and expression in param_types:
-                # Return 'Unknown' type, but we may infer it later
                 return 'Unknown'
             else:
-                # Variable declared without a type, default to 'Unknown'
                 return 'Unknown'
     except SemanticError:
         pass  # Not a variable, proceed to next check
@@ -437,70 +436,21 @@ def type_check_expression(expression, symbol_table, line_number=None, line_conte
         func_name, args = func_call_match.groups()
         args = args.strip()
         args_list = [arg.strip() for arg in args.split(',')] if args else []
-        if func_name in built_in_unops:
-            if len(args_list) != 1:
-                # Pass line_number and line_content as keyword arguments
-                raise TypeError(f"Operator '{func_name}' requires one argument.", 
-                                input_file=None, line_number=line_number, line_content=line_content)
-            arg_type = type_check_expression(args_list[0], symbol_table, 
+
+        # Type check each argument passed to the function
+        for arg in args_list:
+            arg_type = type_check_expression(arg, symbol_table, 
                                              line_number=line_number, 
-                                             line_content=line_content, 
-                                             param_types=param_types)
+                                             line_content=line_content)
+
+            # Ensure that all arguments are of type 'num'
             if arg_type != 'num':
-                if arg_type == 'Unknown' and param_types is not None and args_list[0] in param_types:
-                    # We can infer that this parameter should be 'num'
-                    param_types[args_list[0]].add('num')
-                else:
-                    # Pass line_number and line_content as keyword arguments
-                    raise TypeError(f"Operator '{func_name}' requires 'num' type argument, got '{arg_type}'.", 
-                                    input_file=None, line_number=line_number, line_content=line_content)
-            return 'num'
-        elif func_name in built_in_binops:
-            if len(args_list) != 2:
-                # Pass line_number and line_content as keyword arguments
-                raise TypeError(f"Operator '{func_name}' requires two arguments.", 
+                raise TypeError(f"Function '{func_name}' expects 'num' type arguments, but got '{arg_type}' for argument '{arg}'.", 
                                 input_file=None, line_number=line_number, line_content=line_content)
-            arg1_type = type_check_expression(args_list[0], symbol_table, 
-                                             line_number=line_number, 
-                                             line_content=line_content, 
-                                             param_types=param_types)
-            arg2_type = type_check_expression(args_list[1], symbol_table, 
-                                             line_number=line_number, 
-                                             line_content=line_content, 
-                                             param_types=param_types)
-            # For arg1
-            if arg1_type != 'num':
-                if arg1_type == 'Unknown' and param_types is not None and args_list[0] in param_types:
-                    param_types[args_list[0]].add('num')
-                else:
-                    # Pass line_number and line_content as keyword arguments
-                    raise TypeError(f"Operator '{func_name}' requires 'num' type arguments, got '{arg1_type}' and '{arg2_type}'.", 
-                                    input_file=None, line_number=line_number, line_content=line_content)
-            # For arg2
-            if arg2_type != 'num':
-                if arg2_type == 'Unknown' and param_types is not None and args_list[1] in param_types:
-                    param_types[args_list[1]].add('num')
-                else:
-                    # Pass line_number and line_content as keyword arguments
-                    raise TypeError(f"Operator '{func_name}' requires 'num' type arguments, got '{arg1_type}' and '{arg2_type}'.", 
-                                    input_file=None, line_number=line_number, line_content=line_content)
-            return 'num'
-        else:
-            # Not a built-in operator, check if function is declared
-            try:
-                func_info = symbol_table.lookup_symbol(func_name, line_number=line_number, line_content=line_content)
-                if func_info['type'] != 'func':
-                    # Pass line_number and line_content as keyword arguments
-                    raise TypeError(f"'{func_name}' is not a function.", 
-                                    input_file=None, line_number=line_number, line_content=line_content)
-                func_type = func_info.get('data_type', 'Unknown')
-                # Optionally, type-check the function arguments here
-                return func_type
-            except SemanticError as e:
-                # Pass line_number and line_content as keyword arguments
-                raise TypeError(str(e), input_file=None, line_number=line_number, line_content=line_content)
+
+        # After checking arguments, assume the function itself returns 'num'
+        return 'num'
 
     # If none of the above, raise an error
-    # Pass line_number and line_content as keyword arguments
     raise TypeError(f"Unable to determine the type of expression '{expression}'.", 
                     input_file=None, line_number=line_number, line_content=line_content)
