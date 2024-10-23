@@ -154,6 +154,7 @@ def type_check_input_file(input_file):
     # First Pass: Collect all function declarations and global variables
     in_global_scope = True  # Flag to indicate if we are in the global scope
 
+    # First Pass: Collect all function declarations and global variables
     for line_number, line in enumerate(lines, start=1):
         original_line = line.rstrip('\n')
         line = line.strip()
@@ -162,16 +163,16 @@ def type_check_input_file(input_file):
         if not line:
             continue
 
-        # Check for 'main' function
-        if line == 'main':
-            in_global_scope = False  # We're entering the main function
-            continue
-
         # Function declaration
         function_decl_match = re.match(r'(num|void)\s+(\w+)\s*\(([^)]*)\)', line)
         if function_decl_match:
             in_global_scope = False  # We've encountered a function declaration; we're no longer in global scope
             return_type, func_name, params = function_decl_match.groups()
+
+            # Enforce that functions must have 'num' return type only
+            if return_type != 'num':
+                raise SemanticError(f"Function '{func_name}' has an invalid return type '{return_type}'. Only 'num' return types are allowed.",
+                                    input_file, line_number, original_line)
 
             # Check if the function name is a reserved keyword
             if func_name in reserved_keywords:
@@ -183,11 +184,12 @@ def type_check_input_file(input_file):
                 raise SemanticError(f"Function '{func_name}' is already declared in the global scope.",
                                     input_file, line_number, original_line)
 
-            # Declare function in the global scope with return type
+            # Declare function in the global scope with return type 'num'
             symbol_table.declare_symbol(func_name, "func", data_type=return_type, 
                                         scope=symbol_table.global_scope, 
                                         line_number=line_number, line_content=original_line)
             continue
+
 
         # Variable declarations in global scope
         if in_global_scope:
