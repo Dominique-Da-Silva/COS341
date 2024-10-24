@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 from translate import translate_to_basic  # Importing the translation function from the translator module
 import tkinter as tk
 from tkinter import filedialog, scrolledtext, messagebox
+import sys
 
 # ANSI color codes
 GREEN = '\033[0;32m'
@@ -17,7 +18,17 @@ BLUE = "\033[0;34m"
 PURPLE = "\033[0;35m"
 RESET = '\033[0m'
 
-BASIC_INTERPRETER = "bwbasic"  # Placeholder for basic interpreter
+class TextRedirector:
+    def __init__(self, widget, tag="stdout"):
+        self.widget = widget
+        self.tag = tag
+
+    def write(self, string):
+        self.widget.insert(tk.END, string)
+        self.widget.see(tk.END)  # Auto-scroll to the end of the text area
+
+    def flush(self):
+        pass
 
 def process_input(input_file):
     output_dir = "outputs"
@@ -71,7 +82,6 @@ def process_input(input_file):
     except Exception as e:
         raise Exception(f"Error: {e}")
 
-
 def generate_xml(tokens, output_path):
     """
     Generate an XML file from the list of tokens.
@@ -96,7 +106,6 @@ def generate_xml(tokens, output_path):
     tree = ET.ElementTree(root)
     tree.write(output_path, encoding='utf-8', xml_declaration=True)
 
-
 def indent_xml(elem, level=0):
     """
     Recursively adds indentation to the XML elements for pretty printing.
@@ -110,16 +119,24 @@ def indent_xml(elem, level=0):
             indent_xml(child, level + 1)
         if not elem.tail or not elem.tail.strip():
             elem.tail = i
+
+# Function to toggle between views
+def toggle_view():
+    if internal_output_area.winfo_ismapped():  # If internal processing is currently shown
+        internal_output_area.pack_forget()
+        summary_output_area.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)  # Show summary
+        toggle_button.config(text="See Internal Processing")
     else:
-        if level and (not elem.tail or not elem.tail.strip()):
-            elem.tail = i
+        summary_output_area.pack_forget()
+        internal_output_area.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)  # Show internal processing
+        toggle_button.config(text="Hide Internal Processing")
 
-
-# GUI Code
-def on_compile():
+# Compilation function
+def run_compilation(input_text):
     try:
-        # Get the input text from the text area
-        input_text = input_text_area.get("1.0", tk.END).strip()
+        # Redirect stdout and stderr to the internal output area
+        sys.stdout = TextRedirector(internal_output_area)
+        sys.stderr = TextRedirector(internal_output_area)
 
         # Create a temporary input file from the text area content
         temp_input_file = "temp_input.txt"
@@ -133,13 +150,38 @@ def on_compile():
         basic_output_area.delete("1.0", tk.END)
         basic_output_area.insert(tk.END, basic_code)
 
-        # Display internal process output (for now, just placeholder text)
-        internal_output_area.delete("1.0", tk.END)
-        internal_output_area.insert(tk.END, "Parsing completed successfully.\nType checking completed successfully.")
+        # Update the summary area with phase completion info
+        summary_output_area.delete("1.0", tk.END)
+        summary_output_area.insert(tk.END, "Lexing completed successfully.\n")
+        summary_output_area.insert(tk.END, "Parsing completed successfully.\n")
+        summary_output_area.insert(tk.END, "Semantic Analysis completed successfully.\n")
+        summary_output_area.insert(tk.END, "Type Checking completed successfully.\n")
+        summary_output_area.insert(tk.END, "Translation to BASIC completed successfully.\n")
 
     except Exception as e:
         messagebox.showerror("Error", str(e))
 
+    finally:
+        # Restore stdout and stderr back to the default behavior
+        sys.stdout = sys.__stdout__
+        sys.stderr = sys.__stderr__
+
+# GUI Code
+def on_compile():
+    try:
+        # Clear the summary, internal, and basic output areas before compiling
+        summary_output_area.delete("1.0", tk.END)
+        internal_output_area.delete("1.0", tk.END)
+        basic_output_area.delete("1.0", tk.END)
+
+        # Get the input text from the text area
+        input_text = input_text_area.get("1.0", tk.END).strip()
+
+        # Run the compilation process
+        run_compilation(input_text)
+
+    except Exception as e:
+        messagebox.showerror("Error", str(e))
 
 def on_browse():
     file_path = filedialog.askopenfilename(filetypes=[("Text files", "*.txt")])
@@ -152,7 +194,6 @@ def on_browse():
             input_text = file.read()
             input_text_area.delete("1.0", tk.END)
             input_text_area.insert(tk.END, input_text)
-
 
 # GUI Setup
 root = tk.Tk()
@@ -179,14 +220,31 @@ input_text_area = scrolledtext.ScrolledText(root, width=90, height=10)
 input_text_area.pack()
 
 # Compile Button
-compile_button = tk.Button(root, text="Compile", command=on_compile)
-compile_button.pack()
+compile_frame = tk.Frame(root)
+compile_frame.pack()
 
-# Internal Process Output Area
-internal_label = tk.Label(root, text="Internal Process Results:")
-internal_label.pack()
-internal_output_area = scrolledtext.ScrolledText(root, width=90, height=5)
-internal_output_area.pack()
+compile_button = tk.Button(compile_frame, text="Compile", command=on_compile)
+compile_button.pack(side=tk.LEFT, padx=10)
+
+# Warning Label (blue text as requested)
+compile_warning_label = tk.Label(compile_frame, text="Compiling may take a few seconds, and the UI may momentarily freeze.", fg="blue")
+compile_warning_label.pack(side=tk.LEFT)
+
+# Summary Output Area and Internal Process Output Area share the same position
+output_frame = tk.Frame(root)
+output_frame.pack(fill=tk.BOTH, expand=True)
+
+# Summary Output Area (default visible, showing phase completion)
+summary_output_area = scrolledtext.ScrolledText(output_frame, width=90, height=10)
+summary_output_area.pack(fill=tk.BOTH, expand=True)
+
+# Internal Process Output Area (hidden by default)
+internal_output_area = scrolledtext.ScrolledText(output_frame, width=90, height=15)
+internal_output_area.pack_forget()
+
+# Toggle Button
+toggle_button = tk.Button(root, text="See Internal Processing", command=toggle_view)
+toggle_button.pack(pady=5)
 
 # BASIC Output Area
 basic_label = tk.Label(root, text="Generated BASIC Code:")
