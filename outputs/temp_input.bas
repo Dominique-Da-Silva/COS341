@@ -3,19 +3,23 @@ Dim V_y As Integer
 Dim V_result As Integer
 Input V_x
 Input V_y
-If grt ( V_x , V_y ) , grt ( V_y And 0 ) Then
-    V_result = F_average(V_x , V_y , 0)
-    Print V_result
-End If
-If eq ( V_x , 0 ) , eq ( V_y Or 0 ) Then
-    Print "Zero"
-End If
-V_result = V_x * V_y
+V_result = V_x + V_y
 Print V_result
-Function F_average (V_a , V_b , V_dummy)
+Function F_calculate (V_a , V_b , V_c)
 Dim V_sum As Integer
-Dim V_count As Integer
+Dim V_difference As Integer
+Dim V_product As Integer
 V_sum = V_a + V_b
-V_count = V_sum
-V_result = V_sum / V_count
+V_difference = V_a - 10
+V_product = V_b * V_c
+F_calculate = V_sum
+End Function
+Function F_display (V_message , V_value , V_dummy)
+Dim V_temp1 As Integer
+Dim V_temp2 As Integer
+Dim V_temp3 As Integer
+V_temp1 = V_value
+V_temp2 = V_message
+V_temp3 = V_temp1 + V_temp2
+Print V_temp3
 End Function

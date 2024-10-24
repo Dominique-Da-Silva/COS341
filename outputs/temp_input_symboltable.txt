@@ -2,7 +2,8 @@ Scope: Global
   Variable: V_x -> Data Type: num
   Variable: V_y -> Data Type: num
   Variable: V_result -> Data Type: num
-  Function: F_average -> Return Type: num
+  Function: F_calculate -> Return Type: num
+  Function: F_display -> Return Type: num
 
 Scope: main
   Variable: V_x -> Data Type: num
@@ -11,23 +12,27 @@ Scope: main
 
 Scope: main_body
 
-Scope: Block_Level_3
-
-Scope: Block_Level_3
-
-Scope: Block_Level_4
-
-Scope: Block_Level_4
-
-Scope: F_average
+Scope: F_calculate
   Variable: V_a -> Data Type: num
   Variable: V_b -> Data Type: num
+  Variable: V_c -> Data Type: num
+
+Scope: F_calculate_body
+  Variable: V_sum -> Data Type: num
+  Variable: V_difference -> Data Type: num
+  Variable: V_product -> Data Type: num
+
+Scope: Block_Level_4
+
+Scope: F_display
+  Variable: V_message -> Data Type: num
+  Variable: V_value -> Data Type: num
   Variable: V_dummy -> Data Type: num
 
-Scope: F_average_body
-  Variable: V_sum -> Data Type: num
-  Variable: V_count -> Data Type: num
-  Variable: V_result -> Data Type: num
+Scope: F_display_body
+  Variable: V_temp1 -> Data Type: num
+  Variable: V_temp2 -> Data Type: num
+  Variable: V_temp3 -> Data Type: num
 
-Scope: Block_Level_6
+Scope: Block_Level_5
 

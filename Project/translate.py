@@ -191,14 +191,12 @@ def translate_condition(condition):
 
 import re
 
-import re
-
 def translate_condition(condition_str):
     """
     Translates a condition from the custom language to BASIC syntax.
     
     Args:
-        condition_str (str): The condition string in the custom language.
+        condition_str (str): The condition string in custom language.
         
     Returns:
         str: The translated condition string in BASIC syntax.
@@ -213,10 +211,7 @@ def translate_condition(condition_str):
         'or': 'Or'
     }
     
-    def recursive_translate(cond):
-        """
-        Recursively translates conditions.
-        """
+    def parse_condition(cond):
         cond = cond.strip()
         
         # Match logical operators with two operands: and(cond1, cond2) or or(cond1, cond2)
@@ -226,9 +221,9 @@ def translate_condition(condition_str):
             operand1 = logical_match.group(2).strip()
             operand2 = logical_match.group(3).strip()
             
-            # Recursively translate operands
-            translated_operand1 = recursive_translate(operand1)
-            translated_operand2 = recursive_translate(operand2)
+            # Recursively parse operands
+            translated_operand1 = parse_condition(operand1)
+            translated_operand2 = parse_condition(operand2)
             
             # Map logical operator
             mapped_logical_op = operator_mapping.get(logical_op, logical_op)
@@ -259,14 +254,15 @@ def translate_condition(condition_str):
         parenthesis_match = re.match(r'^\(\s*(.+)\s*\)$', cond)
         if parenthesis_match:
             inner_cond = parenthesis_match.group(1).strip()
-            return f"({recursive_translate(inner_cond)})"
+            return f"({parse_condition(inner_cond)})"
         
         # If none of the above, return the condition as is
         return cond
     
     # Start parsing from the full condition string
-    translated_condition = recursive_translate(condition_str)
+    translated_condition = parse_condition(condition_str)
     return translated_condition
+
 
 
 def translate_line(line):
