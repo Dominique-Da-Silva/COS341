@@ -18,3 +18,7 @@ This application allows you to compile source code into BASIC syntax, with live 
 - If your anti-virus flags the executable, you may need to temporarily allow it through the firewall.
 - If the application doesn't open, try running it as an administrator by right-clicking the executable and selecting **Run as Administrator**.
 
+## Known Limitations:
+- Binary operations such as grt are not correctly translated into BASIC syntax. 
+- Type Checking for Built-in Binary Operations is overly lenient (will allow num and text arguments when it should just allow num.)
+
