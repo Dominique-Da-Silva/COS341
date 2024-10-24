@@ -1,5 +1,6 @@
 import os
 import time
+import subprocess  # To run external commands
 from lexer import Lexer, LexicalError
 from parser import SLRParser
 from semantic import perform_semantic_analysis  # Importing the semantic analysis function
@@ -13,6 +14,8 @@ RED = '\033[0;31m'
 BLUE = "\033[0;34m"
 PURPLE = "\033[0;35m"
 RESET = '\033[0m'
+
+BASIC_INTERPRETER = "bwbasic"  # Basic interpreter bundled in the project
 
 def main():
     input_dir = "inputs"
@@ -29,6 +32,7 @@ def main():
         output_path = os.path.join(output_dir, output_file)
         syntax_tree_output = os.path.splitext(input_file)[0] + "_syntaxtree.xml"
         syntax_tree_path = os.path.join(output_dir, syntax_tree_output)
+        basic_output_path = os.path.join(output_dir, os.path.splitext(input_file)[0] + ".bas")
 
         print(f"\n{PURPLE}{'='*40}{RESET}")
         print(f"{BLUE}Processing file: {input_file}{RESET}")
@@ -78,14 +82,19 @@ def main():
                 type_check_input_file(input_path)  # Call to type checking
                 print(f"{GREEN}Type checking completed successfully for {input_file}.{RESET}")
 
-                # Translate to BASIC and print to terminal
+                # Translate to BASIC and save in the output directory
                 print(f"{BLUE}{'-'*40}{RESET}")
                 print(f"{BLUE}Translating {input_file} to BASIC syntax...{RESET}")
                 
-                # Translate the input to BASIC and print it
+                # Translate the input to BASIC and save it to a file
                 basic_code = translate_to_basic(input_text.splitlines())
-                print(f"\n{GREEN}Generated BASIC Code for {input_file}:{RESET}\n")
-                print(basic_code)
+                with open(basic_output_path, 'w') as basic_file:
+                    basic_file.write(basic_code)
+                
+                print(f"\n{GREEN}Generated BASIC Code for {input_file} saved to {basic_output_path}.{RESET}\n")
+
+                # Now run the BASIC file using an interpreter
+                run_basic_code(basic_output_path)
 
             else:
                 print(f"{RED}Parsing failed for {input_file}.{RESET}")
@@ -155,6 +164,20 @@ def parse_xml(xml_file, input_file, input_text):
     except Exception as e:
         print(f"{RED}An exception was caught during parsing: {e}{RESET}")
         return False
+
+def run_basic_code(basic_file_path):
+    """
+    Runs the BASIC code using a BASIC interpreter.
+    """
+    try:
+        result = subprocess.run([BASIC_INTERPRETER, basic_file_path], capture_output=True, text=True)
+        print(f"\n{GREEN}Execution Result of {basic_file_path}:{RESET}\n")
+        print(result.stdout)
+        if result.stderr:
+            print(f"\n{RED}Errors encountered during execution:{RESET}\n")
+            print(result.stderr)
+    except Exception as e:
+        print(f"{RED}Failed to run BASIC interpreter: {e}{RESET}")
 
 if __name__ == "__main__":
     main()
