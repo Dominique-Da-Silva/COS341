@@ -1,70 +1,24 @@
-# IDEA & TIPS OF THE PROJECT
-* SPL stands for "Students' Programming Language", and Rec stands for "Recursive": You see that in this year's version (2024) the SPL does not offer any WHILE commands for Loops, because all repetitions must be programmed purely recursively in RecSPL.
+# Compiler GUI Application
 
-* As you see, I have kept the "design" of RecSPL so simple that the "Lexing" of its tokens will not be difficult; and also its "Parsing" will be quite straightforward, too :)
+## Description:
+This application allows you to compile source code into BASIC syntax, with live editing, internal process viewing, and phase summaries. It was built using Python and packaged into an executable for ease of use.
 
-* At the end of the semester, you should be able to write a small RecSPL program, compile it with your own compiler, and let the generated output code actually run and "do stuff"; that will be a HAPPY DAY when you'll see that it really works :)
+## How to Run:
+1. **Download** the executable (`main.exe`) from the provided link or folder.
+2. **Double-click** on the `main.exe` file to open the GUI.
+3. **Use the Browse button** to select a text file, or edit the content directly in the input text area.
+4. **Click Compile** to process the input file or text and view the output in the summary section.
+5. Optionally, you can view detailed internal process logs by clicking the "See Internal Processing" button.
 
-* The RecSPL input file, which your Lexer software must analyse, will be given as a plain *.txt file; for the purpose of experimenting and testing you can easily create such *.txt files (containing some RecSPL program code) by yourself.
+## System Requirements:
+- **Operating System**: Windows 10 or later.
+- **No additional software is required**, as the application is packaged as a standalone executable. You do not need Python or any other libraries installed.
 
-* IF the input *.txt file contains any lexical errors (which corresponds, in theory, to the underlying DFA getting 'stuck' in a non-accepting state), then your Lexer software must "throw" a reasonably understandable Error-Message back to the User.
+## Common Issues:
+- If your anti-virus flags the executable, you may need to temporarily allow it through the firewall.
+- If the application doesn't open, try running it as an administrator by right-clicking the executable and selecting **Run as Administrator**.
 
-* IF the input *.txt file does not contain any lexical errors, then your Lexer software must create, write, and store (as its output) an XLM file which the Parser can later use as its input.
+## Known Limitations:
+- Binary operations such as grt are not correctly translated into BASIC syntax. 
+- Type Checking for Built-in Binary Operations is overly lenient (will allow num and text arguments when it should just allow num.)
 
-# COMPILER CONSTRUCTION INSTALLATION GUIDE
-
-> [!Important]
-> Clone the repository into WSL. Running the following commands in Windows might lead to problems.
-> 
-> Don't have WSL installed? Check out [How to install WSL](https://learn.microsoft.com/en-us/windows/wsl/install)
-
-### 1. Working directory setup
-Open a terminal in your IDE and set backend folder as the current working directory (if you have not already done so):
-```
-cd Project
-```
-
-### 2. Be sure to install Python
-Check whether it has been installed:
-```
-python3 --version
-```
-Installing in case it has not previously been installed:
-```
-sudo apt update
-```
-```
-sudo apt install python3
-```
-```
-python3 --version
-```
-
-### 3. Create the python virtual environment named venv
-```
-python3 -m venv venv
-```
-
-### 4. Activate the virtual environment
-```
-source venv/bin/activate
-```
-After activation, you should see (venv) at the start of your terminal prompt, indicating the environment is active.
-
-### 5. To run the python script
-```
-python main.py
-```
-
-### 6. Deactivating the virtual environment
-```
-deactivate
-```
-
-### 7. Formatting the file
-```
-sudo pip install black
-```
-```
-black <filename>
-```

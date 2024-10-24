@@ -1,0 +1,33 @@
+Scope: Global
+  Variable: V_x -> Data Type: num
+  Variable: V_y -> Data Type: num
+  Variable: V_result -> Data Type: num
+  Function: F_average -> Return Type: num
+
+Scope: main
+  Variable: V_x -> Data Type: num
+  Variable: V_y -> Data Type: num
+  Variable: V_result -> Data Type: num
+
+Scope: main_body
+
+Scope: Block_Level_3
+
+Scope: Block_Level_3
+
+Scope: Block_Level_4
+
+Scope: Block_Level_4
+
+Scope: F_average
+  Variable: V_a -> Data Type: num
+  Variable: V_b -> Data Type: num
+  Variable: V_dummy -> Data Type: num
+
+Scope: F_average_body
+  Variable: V_sum -> Data Type: num
+  Variable: V_count -> Data Type: num
+  Variable: V_result -> Data Type: num
+
+Scope: Block_Level_6
+

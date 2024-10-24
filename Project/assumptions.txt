@@ -1,0 +1,1 @@
+If function parameters don't clearly imply a type in the signature we default the parameter to text as it is the most encompassing type that will cause the least errors (i.e. 45 can still be considered text but "hello" cannot be considered a num.)
