@@ -7,6 +7,8 @@ from semantic import perform_semantic_analysis  # Importing the semantic analysi
 from typecheck import type_check_input_file  # Importing the type checking function
 import xml.etree.ElementTree as ET
 from translate import translate_to_basic  # Importing the translation function from the translator module
+import tkinter as tk
+from tkinter import filedialog, scrolledtext, messagebox
 
 # ANSI color codes
 GREEN = '\033[0;32m'
@@ -15,115 +17,60 @@ BLUE = "\033[0;34m"
 PURPLE = "\033[0;35m"
 RESET = '\033[0m'
 
-BASIC_INTERPRETER = "bwbasic"  # Basic interpreter bundled in the project
+BASIC_INTERPRETER = "bwbasic"  # Placeholder for basic interpreter
 
-def main():
-    input_dir = "inputs"
+def process_input(input_file):
     output_dir = "outputs"
-
+    
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    input_files = [f for f in os.listdir(input_dir) if f.endswith('.txt')]
+    # Dynamic naming for output files based on input file
+    base_filename = os.path.splitext(os.path.basename(input_file))[0]
+    lexer_output_path = os.path.join(output_dir, f"{base_filename}_lexer_output.xml")
+    syntax_tree_output = os.path.join(output_dir, f"{base_filename}_syntaxtree.xml")
+    basic_output_path = os.path.join(output_dir, f"{base_filename}.bas")
 
-    for input_file in input_files:
-        input_path = os.path.join(input_dir, input_file)
-        output_file = os.path.splitext(input_file)[0] + "_lexer_output.xml"
-        output_path = os.path.join(output_dir, output_file)
-        syntax_tree_output = os.path.splitext(input_file)[0] + "_syntaxtree.xml"
-        syntax_tree_path = os.path.join(output_dir, syntax_tree_output)
-        basic_output_path = os.path.join(output_dir, os.path.splitext(input_file)[0] + ".bas")
-
-        print(f"\n{PURPLE}{'='*40}{RESET}")
-        print(f"{BLUE}Processing file: {input_file}{RESET}")
-        print(f"{PURPLE}{'='*40}{RESET}\n")
-
-        with open(input_path, 'r') as file:
+    try:
+        with open(input_file, 'r') as file:
             input_text = file.read()
 
+        # Lexing
         lexer = Lexer(input_text)
-        
-        try:
-            # Tokenize the input text
-            tokens = lexer.tokenize()
+        tokens = lexer.tokenize()
 
-            # Divider for lexing success
-            print(f"{PURPLE}{'-'*40}{RESET}")
-            print(f"{GREEN}Lexing successful for {input_file}. Output saved to {output_path}.{RESET}")
-            print(f"{PURPLE}{'-'*40}{RESET}")
+        # Generate XML from tokens
+        generate_xml(tokens, lexer_output_path)
 
-            # Generate XML output from tokens
-            generate_xml(tokens, output_path)
+        # Parsing
+        parser = SLRParser(lexer_output_path, input_text, base_filename)
+        parser.parse()
+        parser.generate_syntax_tree_xml(syntax_tree_output)
 
-            # Check if the XML file was written correctly
-            if os.path.exists(output_path):
-                print(f"{GREEN}XML file generated at: {output_path}{RESET}")
-            else:
-                print(f"{RED}XML file generation failed for {output_file}.{RESET}")
-                continue
+        # Semantic Analysis
+        perform_semantic_analysis(syntax_tree_output, input_file)
 
-            # Parse the XML file with the SLR parser, passing input_text and input_path
-            parse_result = parse_xml(output_path, input_path, input_text)
-            if parse_result:
-                print(f"{GREEN}Parsing successful for {input_file}.{RESET}")
-                
-                # Delay to ensure the syntax tree file is written
-                time.sleep(1)
+        # Type Checking
+        type_check_input_file(input_file)
 
-                # Perform Semantic Analysis
-                print(f"{BLUE}{'-'*40}{RESET}")
-                print(f"{BLUE}Starting Semantic Analysis for {input_file}.{RESET}")
-                perform_semantic_analysis(syntax_tree_path, input_path)  # Call to semantic analysis
-                print(f"{GREEN}Semantic analysis completed successfully for {input_file}.{RESET}")
+        # Translation to BASIC
+        basic_code = translate_to_basic(input_text.splitlines())
 
-                # Perform Type Checking
-                print(f"{BLUE}{'-'*40}{RESET}")
-                print(f"{BLUE}Starting Type Checking for {input_file}.{RESET}")
-                type_check_input_file(input_path)  # Call to type checking
-                print(f"{GREEN}Type checking completed successfully for {input_file}.{RESET}")
+        # Save the BASIC code to a file
+        with open(basic_output_path, 'w') as basic_file:
+            basic_file.write(basic_code)
 
-                # Translate to BASIC and save in the output directory
-                print(f"{BLUE}{'-'*40}{RESET}")
-                print(f"{BLUE}Translating {input_file} to BASIC syntax...{RESET}")
-                
-                # Translate the input to BASIC and save it to a file
-                basic_code = translate_to_basic(input_text.splitlines())
-                with open(basic_output_path, 'w') as basic_file:
-                    basic_file.write(basic_code)
-                
-                print(f"\n{GREEN}Generated BASIC Code for {input_file} saved to {basic_output_path}.{RESET}\n")
+        return basic_code  # Returning the BASIC code for display in the GUI
 
-                # Now run the BASIC file using an interpreter
-                run_basic_code(basic_output_path)
+    except LexicalError as e:
+        raise Exception(f"Lexical Error: {e}")
+    except SyntaxError as e:
+        raise Exception(f"Syntax Error: {e}")
+    except TypeError as e:
+        raise Exception(f"Type Error: {e}")
+    except Exception as e:
+        raise Exception(f"Error: {e}")
 
-            else:
-                print(f"{RED}Parsing failed for {input_file}.{RESET}")
-
-        except LexicalError as e:
-            print(f"{RED}Lexing failed for {input_file}: {e}{RESET}")
-        except SyntaxError as e:
-            print(f"{RED}Syntax error in {input_file}: {e}{RESET}")
-        except TypeError as e:
-            print(f"{RED}Type error in {input_file}: {e}{RESET}")
-        except Exception as e:
-            print(f"{RED}Error in {input_file}: {e}{RESET}")
-
-def indent_xml(elem, level=0):
-    """
-    Recursively adds indentation to the XML elements for pretty printing.
-    """
-    indent = "  " 
-    i = "\n" + level * indent
-    if len(elem):
-        if not elem.text or not elem.text.strip():
-            elem.text = i + indent
-        for child in elem:
-            indent_xml(child, level + 1)
-        if not elem.tail or not elem.tail.strip():
-            elem.tail = i
-    else:
-        if level and (not elem.tail or not elem.tail.strip()):
-            elem.tail = i
 
 def generate_xml(tokens, output_path):
     """
@@ -148,36 +95,103 @@ def generate_xml(tokens, output_path):
 
     tree = ET.ElementTree(root)
     tree.write(output_path, encoding='utf-8', xml_declaration=True)
-    print(f"{GREEN}XML successfully written to {output_path}{RESET}")
 
-def parse_xml(xml_file, input_file, input_text):
+
+def indent_xml(elem, level=0):
     """
-    Use the SLRParser to parse the XML token stream.
+    Recursively adds indentation to the XML elements for pretty printing.
     """
+    indent = "  " 
+    i = "\n" + level * indent
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + indent
+        for child in elem:
+            indent_xml(child, level + 1)
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
+
+
+# GUI Code
+def on_compile():
     try:
-        parser = SLRParser(xml_file, input_text, input_file)
-        parser.parse()
-        return True
-    except SyntaxError as e:
-        print(f"{RED}Parsing failed: {e}{RESET}")
-        return False
-    except Exception as e:
-        print(f"{RED}An exception was caught during parsing: {e}{RESET}")
-        return False
+        # Get the input text from the text area
+        input_text = input_text_area.get("1.0", tk.END).strip()
 
-def run_basic_code(basic_file_path):
-    """
-    Runs the BASIC code using a BASIC interpreter.
-    """
-    try:
-        result = subprocess.run([BASIC_INTERPRETER, basic_file_path], capture_output=True, text=True)
-        print(f"\n{GREEN}Execution Result of {basic_file_path}:{RESET}\n")
-        print(result.stdout)
-        if result.stderr:
-            print(f"\n{RED}Errors encountered during execution:{RESET}\n")
-            print(result.stderr)
-    except Exception as e:
-        print(f"{RED}Failed to run BASIC interpreter: {e}{RESET}")
+        # Create a temporary input file from the text area content
+        temp_input_file = "temp_input.txt"
+        with open(temp_input_file, 'w') as temp_file:
+            temp_file.write(input_text)
 
-if __name__ == "__main__":
-    main()
+        # Run the full process on the temporary input file
+        basic_code = process_input(temp_input_file)
+        
+        # Display the BASIC code output
+        basic_output_area.delete("1.0", tk.END)
+        basic_output_area.insert(tk.END, basic_code)
+
+        # Display internal process output (for now, just placeholder text)
+        internal_output_area.delete("1.0", tk.END)
+        internal_output_area.insert(tk.END, "Parsing completed successfully.\nType checking completed successfully.")
+
+    except Exception as e:
+        messagebox.showerror("Error", str(e))
+
+
+def on_browse():
+    file_path = filedialog.askopenfilename(filetypes=[("Text files", "*.txt")])
+    if file_path:
+        file_path_entry.delete(0, tk.END)
+        file_path_entry.insert(tk.END, file_path)
+
+        # Preview the content in the input text area
+        with open(file_path, 'r') as file:
+            input_text = file.read()
+            input_text_area.delete("1.0", tk.END)
+            input_text_area.insert(tk.END, input_text)
+
+
+# GUI Setup
+root = tk.Tk()
+root.title("Compiler GUI")
+root.geometry("800x600")
+
+# File Path Entry and Browse Button
+file_frame = tk.Frame(root)
+file_frame.pack(pady=10)
+
+file_label = tk.Label(file_frame, text="Select Input File (optional):")
+file_label.pack(side=tk.LEFT)
+
+file_path_entry = tk.Entry(file_frame, width=50)
+file_path_entry.pack(side=tk.LEFT, padx=5)
+
+browse_button = tk.Button(file_frame, text="Browse", command=on_browse)
+browse_button.pack(side=tk.LEFT)
+
+# Input Text Area
+input_label = tk.Label(root, text="Input File Content (Editable):")
+input_label.pack()
+input_text_area = scrolledtext.ScrolledText(root, width=90, height=10)
+input_text_area.pack()
+
+# Compile Button
+compile_button = tk.Button(root, text="Compile", command=on_compile)
+compile_button.pack()
+
+# Internal Process Output Area
+internal_label = tk.Label(root, text="Internal Process Results:")
+internal_label.pack()
+internal_output_area = scrolledtext.ScrolledText(root, width=90, height=5)
+internal_output_area.pack()
+
+# BASIC Output Area
+basic_label = tk.Label(root, text="Generated BASIC Code:")
+basic_label.pack()
+basic_output_area = scrolledtext.ScrolledText(root, width=90, height=10)
+basic_output_area.pack()
+
+root.mainloop()
