@@ -1,7 +1,129 @@
 import re
 
-# Translate the input to BASIC syntax
+def translate_condition(condition_str):
+    """
+    Translates a condition from the custom language to BASIC syntax.
+
+    Args:
+        condition_str (str): The condition string in custom language.
+
+    Returns:
+        str: The translated condition string in BASIC syntax.
+    """
+    
+    # Define operator mappings
+    operator_mapping = {
+        'grt': '>',
+        'lt': '<',
+        'eq': '=',
+        'and': 'And',
+        'or': 'Or'
+    }
+    
+    def parse_condition(cond):
+        cond = cond.strip()
+        
+        # Match logical operators with two operands: and(cond1, cond2) or or(cond1, cond2)
+        logical_match = re.match(r'^(and|or)\s*\(\s*(.+)\s*,\s*(.+)\s*\)$', cond, re.IGNORECASE)
+        if logical_match:
+            logical_op = logical_match.group(1).lower()
+            operand1 = logical_match.group(2).strip()
+            operand2 = logical_match.group(3).strip()
+            
+            # Recursively parse operands
+            translated_operand1 = parse_condition(operand1)
+            translated_operand2 = parse_condition(operand2)
+            
+            # Map logical operator
+            mapped_logical_op = operator_mapping.get(logical_op, logical_op)
+            
+            return f"{translated_operand1} {mapped_logical_op} {translated_operand2}"
+        
+        # Match binary comparison operators: grt(V_x, V_y), lt(V_a, V_b), eq(V_a, 0), etc.
+        binary_match = re.match(r'^(grt|lt|eq)\s*\(\s*(\w+)\s*,\s*([\w"]+)\s*\)$', cond, re.IGNORECASE)
+        if binary_match:
+            comp_op = binary_match.group(1).lower()
+            left_operand = binary_match.group(2)
+            right_operand = binary_match.group(3)
+            
+            # Map comparison operator
+            mapped_comp_op = operator_mapping.get(comp_op, comp_op)
+            
+            return f"{left_operand} {mapped_comp_op} {right_operand}"
+        
+        # If condition is a simple comparison like V_x > V_y
+        simple_cmp_match = re.match(r'^(\w+)\s*([><=]+)\s*([\w"]+)$', cond)
+        if simple_cmp_match:
+            left = simple_cmp_match.group(1)
+            operator = simple_cmp_match.group(2)
+            right = simple_cmp_match.group(3)
+            return f"{left} {operator} {right}"
+        
+        # Handle cases where condition might be enclosed in parentheses
+        parenthesis_match = re.match(r'^\(\s*(.+)\s*\)$', cond)
+        if parenthesis_match:
+            inner_cond = parenthesis_match.group(1).strip()
+            return f"({parse_condition(inner_cond)})"
+        
+        # If none of the above, return the condition as is
+        return cond
+
+    # Start parsing from the full condition string
+    translated_condition = parse_condition(condition_str)
+    return translated_condition
+
+def translate_expression(expr):
+    """
+    Translates an expression from the custom language to BASIC syntax.
+
+    Args:
+        expr (str): The expression string in custom language.
+
+    Returns:
+        str: The translated expression string in BASIC syntax.
+    """
+    expr = expr.strip()
+    binop_mapping = {
+        'add': '+',
+        'sub': '-',
+        'mul': '*',
+        'div': '/'
+    }
+
+    # Match arithmetic function calls like add(V_a, V_b)
+    func_binop_match = re.match(r'^(\w+)\s*\(\s*([\w"]+)\s*,\s*([\w"]+)\s*\)$', expr)
+    if func_binop_match:
+        func = func_binop_match.group(1).lower()
+        arg1 = func_binop_match.group(2)
+        arg2 = func_binop_match.group(3)
+        if func in binop_mapping:
+            return f'{arg1} {binop_mapping[func]} {arg2}'
+
+    # Match function calls like F_average(V_x, V_y, 0)
+    func_call_match = re.match(r'^(\w+)\s*\((.*)\)$', expr)
+    if func_call_match:
+        func_name = func_call_match.group(1)
+        params = func_call_match.group(2).strip()
+        return f'{func_name}({params})'
+
+    # If it's a string literal, ensure quotes
+    str_match = re.match(r'^"(.+)"$', expr)
+    if str_match:
+        return f'"{str_match.group(1)}"'
+
+    # Otherwise, return as is (handles variables and numeric literals)
+    return expr
+
 def translate_to_basic(input_lines):
+    """
+    Translates lines from the custom language to BASIC syntax.
+
+    Args:
+        input_lines (list): List of lines in the custom language.
+
+    Returns:
+        str: The translated BASIC code as a single string.
+    """
     basic_code = []
     declared_variables = set()  # Track declared variables
     function_names = set()      # Track function names to avoid declaring them as variables
@@ -30,10 +152,11 @@ def translate_to_basic(input_lines):
             continue  # BASIC doesn't require a main declaration
 
         # Handle function declaration (num FunctionName(params) { ) or num FunctionName(params) followed by '{'
-        func_decl_match = re.match(r'^num\s+(\w+)\s*\((.*?)\)\s*{?$', line, re.IGNORECASE)
+        func_decl_match = re.match(r'^(num|text)\s+(\w+)\s*\((.*?)\)\s*{?$', line, re.IGNORECASE)
         if func_decl_match:
-            func_name = func_decl_match.group(1)
-            params = func_decl_match.group(2).strip()
+            var_type = func_decl_match.group(1).lower()
+            func_name = func_decl_match.group(2)
+            params = func_decl_match.group(3).strip()
             function_names.add(func_name)  # Add to function names to prevent 'Dim' statements
 
             # Check if '{' is at the end of the line
@@ -55,13 +178,21 @@ def translate_to_basic(input_lines):
             i += 1
             continue
 
-        # Handle variable declarations (e.g., num V_x, num V_y, ...)
-        # This regex finds all 'num Var' in the line
-        var_decl_matches = re.findall(r'num\s+(\w+)', line, re.IGNORECASE)
+        # Handle variable declarations (e.g., num V_x, text V_y, ...)
+        # This regex finds all '(num|text) Var' in the line, regardless of their position
+        var_decl_matches = re.findall(r'(num|text)\s+(\w+)', line, re.IGNORECASE)
         if var_decl_matches:
-            for var in var_decl_matches:
+            for var_type, var in var_decl_matches:
                 if var not in declared_variables and var not in function_names:
-                    add_line(f'Dim {var} As Integer')
+                    # Map custom types to BASIC types
+                    if var_type == 'num':
+                        basic_type = 'Integer'
+                    elif var_type == 'text':
+                        basic_type = 'String'
+                    else:
+                        basic_type = 'Variant'  # Default type if unknown
+
+                    add_line(f'Dim {var} As {basic_type}')
                     declared_variables.add(var)
             i += 1
             continue
@@ -81,7 +212,6 @@ def translate_to_basic(input_lines):
                     add_line('End If')
                 elif context == 'FUNCTION':
                     add_line('End Function')
-                    current_function = None
                 elif context == 'MAIN':
                     # In BASIC, there's no explicit 'End Main', so nothing
                     pass
@@ -174,157 +304,6 @@ def translate_to_basic(input_lines):
 
     return "\n".join(basic_code)
 
-# Translate condition (handles nested conditions)
-def translate_condition(condition):
-    condition = condition.strip()
-    binop_mapping = {
-        'grt': '>',
-        'lt': '<',
-        'eq': '=',
-        'and': 'And',
-        'or': 'Or',
-        'add': '+',
-        'sub': '-',
-        'mul': '*',
-        'div': '/'
-    }
-
-import re
-
-def translate_condition(condition_str):
-    """
-    Translates a condition from the custom language to BASIC syntax.
-    
-    Args:
-        condition_str (str): The condition string in custom language.
-        
-    Returns:
-        str: The translated condition string in BASIC syntax.
-    """
-    
-    # Define operator mappings
-    operator_mapping = {
-        'grt': '>',
-        'lt': '<',
-        'eq': '=',
-        'and': 'And',
-        'or': 'Or'
-    }
-    
-    def parse_condition(cond):
-        cond = cond.strip()
-        
-        # Match logical operators with two operands: and(cond1, cond2) or or(cond1, cond2)
-        logical_match = re.match(r'^(and|or)\s*\(\s*(.+)\s*,\s*(.+)\s*\)$', cond, re.IGNORECASE)
-        if logical_match:
-            logical_op = logical_match.group(1).lower()
-            operand1 = logical_match.group(2).strip()
-            operand2 = logical_match.group(3).strip()
-            
-            # Recursively parse operands
-            translated_operand1 = parse_condition(operand1)
-            translated_operand2 = parse_condition(operand2)
-            
-            # Map logical operator
-            mapped_logical_op = operator_mapping.get(logical_op, logical_op)
-            
-            return f"{translated_operand1} {mapped_logical_op} {translated_operand2}"
-        
-        # Match binary comparison operators: grt(V_x, V_y), lt(V_a, V_b), eq(V_a, 0), etc.
-        binary_match = re.match(r'^(grt|lt|eq)\s*\(\s*(\w+)\s*,\s*([\w"]+)\s*\)$', cond, re.IGNORECASE)
-        if binary_match:
-            comp_op = binary_match.group(1).lower()
-            left_operand = binary_match.group(2)
-            right_operand = binary_match.group(3)
-            
-            # Map comparison operator
-            mapped_comp_op = operator_mapping.get(comp_op, comp_op)
-            
-            return f"{left_operand} {mapped_comp_op} {right_operand}"
-        
-        # If condition is a simple comparison like V_x > V_y
-        simple_cmp_match = re.match(r'^(\w+)\s*([><=]+)\s*([\w"]+)$', cond)
-        if simple_cmp_match:
-            left = simple_cmp_match.group(1)
-            operator = simple_cmp_match.group(2)
-            right = simple_cmp_match.group(3)
-            return f"{left} {operator} {right}"
-        
-        # Handle cases where condition might be enclosed in parentheses
-        parenthesis_match = re.match(r'^\(\s*(.+)\s*\)$', cond)
-        if parenthesis_match:
-            inner_cond = parenthesis_match.group(1).strip()
-            return f"({parse_condition(inner_cond)})"
-        
-        # If none of the above, return the condition as is
-        return cond
-    
-    # Start parsing from the full condition string
-    translated_condition = parse_condition(condition_str)
-    return translated_condition
-
-
-
-def translate_line(line):
-    """
-    Translates a single line from the custom language to BASIC.
-    
-    Args:
-        line (str): The line in custom language.
-        
-    Returns:
-        str: The translated line in BASIC syntax.
-    """
-    # Match if statements
-    if_match = re.match(r'^if\s+(.+?)\s+then$', line, re.IGNORECASE)
-    if if_match:
-        condition = if_match.group(1).strip()
-        translated_condition = translate_condition(condition)
-        return f'If {translated_condition} Then'
-    
-    # Handle other translations...
-    # (This part remains as in your main translator script)
-    
-    return line  # Return the line as is if no translation is needed
-
-# Example usage within the translator
-input_line = "if and ( grt ( V_x , V_y ) , grt ( V_y , 0 ) ) then"
-translated_line = translate_line(input_line)
-print(translated_line)  # Output: If V_x > V_y And V_y > 0 Then
-
-# Translate expressions (handles arithmetic functions and function calls)
-def translate_expression(expr):
-    expr = expr.strip()
-    binop_mapping = {
-        'add': '+',
-        'sub': '-',
-        'mul': '*',
-        'div': '/'
-    }
-
-    # Match arithmetic function calls like add(V_a, V_b)
-    func_binop_match = re.match(r'^(\w+)\s*\(\s*([\w"]+)\s*,\s*([\w"]+)\s*\)$', expr)
-    if func_binop_match:
-        func = func_binop_match.group(1).lower()
-        arg1 = func_binop_match.group(2)
-        arg2 = func_binop_match.group(3)
-        if func in binop_mapping:
-            return f'{arg1} {binop_mapping[func]} {arg2}'
-
-    # Match function calls like F_average(V_x, V_y, 0)
-    func_call_match = re.match(r'^(\w+)\s*\((.*)\)$', expr)
-    if func_call_match:
-        func_name = func_call_match.group(1)
-        params = func_call_match.group(2).strip()
-        return f'{func_name}({params})'
-
-    # If it's a string literal, ensure quotes
-    str_match = re.match(r'^"(.+)"$', expr)
-    if str_match:
-        return f'"{str_match.group(1)}"'
-
-    # Otherwise, return as is (handles variables and numeric literals)
-    return expr
 
 # Example Main Code for Testing
 def main():

@@ -1,14 +1,20 @@
 main
+num V_x, text V_y, num V_result,
 begin
-    num V_x, text V_y, num V_result
-    V_x < input
-    V_y = "Hello"
+
+    V_x < input;
+    V_y = "Hello" ;
     print V_y;
-    V_result = add(V_x, 5)
+    V_result = add(V_x, 5);
+    
     if eq(V_x, 10) then
+        begin
         print "Equal to ten!";
+        end
     else
+        begin
         print "Not equal to ten!";
-    end
-    return V_result
+        
+    end;
+    return V_result;
 end
